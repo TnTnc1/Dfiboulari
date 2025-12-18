@@ -1,6 +1,6 @@
 (() => {
   // =========================
-  // Canvas / Utils
+  // Canvas / helpers
   // =========================
   const canvas = document.getElementById("gameCanvas");
   const ctx = canvas.getContext("2d");
@@ -14,9 +14,9 @@
     canvas.style.height = window.innerHeight + "px";
     ctx.setTransform(1, 0, 0, 1, 0, 0);
     ctx.scale(dpr, dpr);
+    buildPatterns();
   }
   window.addEventListener("resize", resize);
-  resize();
 
   const W = () => window.innerWidth;
   const H = () => window.innerHeight;
@@ -26,9 +26,8 @@
   const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
   const lerp = (a, b, t) => a + (b - a) * t;
   const rand = (a, b) => a + Math.random() * (b - a);
-  const now = () => performance.now();
 
-  // roundRect polyfill for older browsers
+  // roundRect polyfill
   if (!CanvasRenderingContext2D.prototype.roundRect) {
     CanvasRenderingContext2D.prototype.roundRect = function (x, y, w, h, r) {
       r = Math.min(r, w / 2, h / 2);
@@ -44,7 +43,7 @@
   }
 
   // =========================
-  // UI refs
+  // UI
   // =========================
   const el = (id) => document.getElementById(id);
 
@@ -57,7 +56,7 @@
   const hudMission = el("hudMission");
   const hudTime = el("hudTime");
   const hudPen = el("hudPen");
-  const hudCombo = el("hudCombo");
+  const hudClean = el("hudClean");
   const hudMsg = el("hudMsg");
 
   const toast = el("toast");
@@ -72,8 +71,10 @@
 
   const btnModeContest = el("btnModeContest");
   const btnModePractice = el("btnModePractice");
+
   const chkEasy = el("chkEasy");
   const chkVibrate = el("chkVibrate");
+  const chkWeather = el("chkWeather");
 
   const btnGear = el("btnGear");
   const btnBrake = el("btnBrake");
@@ -95,7 +96,7 @@
   const btnMenu = el("btnMenu");
 
   // =========================
-  // Fullscreen / Mute
+  // Fullscreen
   // =========================
   function toggleFullScreen() {
     const doc = document;
@@ -126,20 +127,15 @@
   });
 
   // =========================
-  // Audio engine (neon UI sounds)
+  // Audio (simple, clean)
   // =========================
   const AudioContextClass = window.AudioContext || window.webkitAudioContext;
-  const audio = {
-    ctx: AudioContextClass ? new AudioContextClass() : null,
-    master: null,
-    muted: false,
-  };
+  const audio = { ctx: AudioContextClass ? new AudioContextClass() : null, master: null, muted: false };
   if (audio.ctx) {
     audio.master = audio.ctx.createGain();
     audio.master.gain.value = 0.9;
     audio.master.connect(audio.ctx.destination);
   }
-
   function tone({ type = "sine", f0 = 440, f1 = null, t = 0.12, g = 0.12 }) {
     if (!audio.ctx || audio.muted) return;
     const n = audio.ctx.currentTime;
@@ -155,30 +151,12 @@
     o.start(n);
     o.stop(n + t);
   }
-
   function sfx(name) {
-    switch (name) {
-      case "click":
-        tone({ type: "square", f0: 240, t: 0.06, g: 0.08 });
-        break;
-      case "hit":
-        tone({ type: "sawtooth", f0: 150, f1: 45, t: 0.18, g: 0.12 });
-        break;
-      case "ok":
-        tone({ type: "sine", f0: 520, f1: 880, t: 0.14, g: 0.12 });
-        break;
-      case "green":
-        tone({ type: "sine", f0: 660, f1: 960, t: 0.12, g: 0.12 });
-        break;
-      case "perfect":
-        tone({ type: "triangle", f0: 740, f1: 1200, t: 0.16, g: 0.12 });
-        break;
-      case "medal":
-        tone({ type: "sine", f0: 880, f1: 660, t: 0.18, g: 0.12 });
-        break;
-    }
+    if (name === "click") tone({ type: "square", f0: 220, t: 0.06, g: 0.08 });
+    if (name === "hit") tone({ type: "sawtooth", f0: 140, f1: 45, t: 0.18, g: 0.12 });
+    if (name === "ok") tone({ type: "sine", f0: 520, f1: 820, t: 0.14, g: 0.12 });
+    if (name === "green") tone({ type: "sine", f0: 660, f1: 900, t: 0.12, g: 0.12 });
   }
-
   function toggleMute() {
     audio.muted = !audio.muted;
     btnMute.textContent = audio.muted ? "🔇" : "🔊";
@@ -193,13 +171,54 @@
   // =========================
   // Vibration helper
   // =========================
-  function vib(ms = 30) {
+  function vib(ms = 25) {
     if (!chkVibrate.checked) return;
     if (navigator.vibrate) navigator.vibrate(ms);
   }
 
   // =========================
-  // Game State
+  // Patterns (asphalt texture + grass)
+  // =========================
+  let asphaltPattern = null;
+  let grassPattern = null;
+
+  function buildPatterns() {
+    // asphalt
+    const a = document.createElement("canvas");
+    a.width = 80; a.height = 80;
+    const ac = a.getContext("2d");
+    ac.fillStyle = "#3b3d42";
+    ac.fillRect(0,0,80,80);
+    for (let i=0;i<420;i++){
+      const v = Math.random() > 0.5 ? 50 : 70;
+      ac.fillStyle = `rgba(${v},${v+2},${v+6},0.35)`;
+      ac.fillRect(Math.random()*80, Math.random()*80, 2, 2);
+    }
+    for (let i=0;i<20;i++){
+      ac.fillStyle = "rgba(0,0,0,0.10)";
+      ac.fillRect(Math.random()*80, Math.random()*80, Math.random()*18, 1);
+    }
+    asphaltPattern = ctx.createPattern(a, "repeat");
+
+    // grass
+    const g = document.createElement("canvas");
+    g.width = 80; g.height = 80;
+    const gc = g.getContext("2d");
+    gc.fillStyle = "#2f6f3a";
+    gc.fillRect(0,0,80,80);
+    for (let i=0;i<240;i++){
+      gc.strokeStyle = `rgba(${40+Math.random()*40},${110+Math.random()*70},${45+Math.random()*40},0.35)`;
+      gc.beginPath();
+      const x = Math.random()*80, y=Math.random()*80;
+      gc.moveTo(x,y);
+      gc.lineTo(x+Math.random()*6-3, y-6-Math.random()*4);
+      gc.stroke();
+    }
+    grassPattern = ctx.createPattern(g, "repeat");
+  }
+
+  // =========================
+  // Game state
   // =========================
   let state = "MENU"; // MENU | PLAY | TRANSITION | FINISHED
   let mode = "CONTEST"; // CONTEST | PRACTICE
@@ -208,19 +227,17 @@
   let playerName = "";
   let lastName = "";
 
-  // Timer: starts on green (lvl1) or first movement
+  // Timer (starts at green or movement)
   let startTimeMs = null;
   let penalty = 0;
 
-  // Addictive layer: combo multiplier + clean run bonus
-  let combo = 1.0;          // grows with clean driving
-  let comboDecay = 0;       // time since last perfect
-  let cleanRun = true;      // no cone/wall hits
+  // Clean run (addictive)
+  let cleanRun = true;
 
-  // Screen shake
+  // Shake
   let shake = 0;
 
-  // Missions (random per run)
+  // Mission
   const missionPool = [
     { id: "clean", label: "Aucune collision", check: (s) => s.wallHits === 0 && s.coneHits === 0 },
     { id: "noCone", label: "0 cône touché", check: (s) => s.coneHits === 0 },
@@ -246,10 +263,10 @@
     stats.precisionPen = 0;
     stats.finalTime = 0;
     penalty = 0;
-    combo = 1.0;
-    comboDecay = 0;
     cleanRun = true;
     startTimeMs = null;
+    hudPen.textContent = "0";
+    hudClean.textContent = "Clean";
   }
 
   function ensureTimerStarted() {
@@ -261,9 +278,7 @@
     return ((performance.now() - startTimeMs) / 1000) + penalty;
   }
 
-  function setMsg(t) {
-    hudMsg.textContent = t;
-  }
+  function setMsg(t) { hudMsg.textContent = t; }
 
   function showToast(title, text, ms = 900) {
     toastTitle.textContent = title;
@@ -273,7 +288,6 @@
   }
 
   function addPenalty(sec, reason, kind = "wall") {
-    // Practice mode: reduce penalty impact to encourage learning
     const factor = easyMode ? 0.6 : 1.0;
     const p = sec * factor;
 
@@ -281,9 +295,8 @@
     hudPen.textContent = Math.round(penalty);
 
     cleanRun = false;
+    hudClean.textContent = "Non";
     shake = Math.min(12, shake + 7);
-    combo = 1.0; // reset combo on mistake
-    comboDecay = 0;
 
     if (kind === "cone") stats.coneHits++;
     if (kind === "wall") stats.wallHits++;
@@ -295,50 +308,28 @@
     if (reason) showToast("PÉNALITÉ", `+${p.toFixed(1)}s • ${reason}`, 1100);
   }
 
-  function rewardPerfect(label = "Parfait") {
-    combo = Math.min(2.0, combo + 0.05);
-    comboDecay = 0;
-    hudCombo.textContent = combo.toFixed(1);
-    sfx("perfect");
-    showToast("PARFAIT", `${label} • combo x${combo.toFixed(1)}`, 750);
-  }
-
   // =========================
   // World / Entities
   // =========================
   let levelIndex = 0;
   let cones = [];
   let walls = [];
+  let parked = [];   // parked cars blocks (visual)
   let target = null;
   let meta = {};
   let winHold = 0;
 
-  // particles for neon vibe
-  const particles = [];
-  function spawnParticles(x, y, n = 10, color = "rgba(0,229,255,0.9)") {
-    for (let i = 0; i < n; i++) {
-      particles.push({
-        x, y,
-        vx: rand(-80, 80),
-        vy: rand(-80, 80),
-        life: rand(0.35, 0.7),
-        t: 0,
-        r: rand(1.5, 3.5),
-        c: color,
-      });
-    }
-  }
-
   function resetWorld() {
     cones = [];
     walls = [];
+    parked = [];
     target = null;
     meta = {};
     winHold = 0;
   }
 
   // =========================
-  // Car (better feel)
+  // Car (feel)
   // =========================
   const CAR = {
     x: 0, y: 0,
@@ -349,7 +340,6 @@
     inputs: { gas: false, brake: false, steerTarget: 0 },
   };
 
-  // Tunables (feel)
   const MAX_STEER = 0.68;
   const WHEELBASE = 46;
   const ACC_FWD = 560;
@@ -368,7 +358,6 @@
       btnGear.className = "gear gear-r";
     }
   }
-
   function toggleGear() {
     CAR.gear *= -1;
     updateGearUI();
@@ -377,21 +366,21 @@
   }
 
   // =========================
-  // Levels (V3)
+  // Levels (Route NC)
   // =========================
   const LEVELS = [
-    // 1) Feu tricolore + gate
+    // 1) Feu tricolore
     {
       title: "1) FEU TRICOLORE",
-      intro: "Attends le vert. Le chrono démarre au vert (ou au mouvement si départ trop tôt).",
+      intro: "Attends le vert. Chrono démarre au vert (ou au mouvement si départ trop tôt).",
       setup() {
         resetWorld();
 
         const roadY = CY(62);
 
-        // borders
-        walls.push({ x: CX(50), y: roadY - 100, w: CX(100), h: 18 });
-        walls.push({ x: CX(50), y: roadY + 100, w: CX(100), h: 18 });
+        // road borders (walls)
+        walls.push({ x: CX(50), y: roadY - 102, w: CX(100), h: 18, type:"curb" });
+        walls.push({ x: CX(50), y: roadY + 102, w: CX(100), h: 18, type:"curb" });
 
         CAR.x = CX(12);
         CAR.y = roadY + 38;
@@ -403,24 +392,24 @@
 
         // light
         meta.light = "RED";
-        meta.greenAt = now() + rand(1200, 2800);
+        meta.greenAt = performance.now() + rand(1200, 2800);
         meta.falseDone = false;
         meta.lightX = CX(46);
-        meta.lightY = roadY - 130;
+        meta.lightY = roadY - 135;
 
-        // gate target
+        // target stop box
         target = { x: CX(72), y: roadY + 38, w: 110, h: 80, a: 0 };
+        meta.stopLineX = CX(64);
 
-        setMsg("Reste prêt. Attends le vert.");
+        setMsg("Attends le vert. Reste prêt.");
       },
       update(dt) {
-        if (meta.light === "RED" && now() >= meta.greenAt) {
+        if (meta.light === "RED" && performance.now() >= meta.greenAt) {
           meta.light = "GREEN";
           sfx("green");
           ensureTimerStarted();
           setMsg("Vert. Démarre.");
           showToast("VERT", "Démarre", 650);
-          spawnParticles(meta.lightX, meta.lightY - 22, 14, "rgba(45,255,154,0.9)");
         }
 
         if (meta.light === "RED") {
@@ -436,17 +425,16 @@
       }
     },
 
-    // 2) Slalom néon (random each run) + combo for clean gates
+    // 2) Slalom
     {
-      title: "2) SLALOM NÉON",
-      intro: "Traverse le slalom. Cône = pénalité. Passages propres = combo.",
+      title: "2) SLALOM",
+      intro: "Traverse le slalom. Cône touché = pénalité.",
       setup() {
         resetWorld();
 
-        const topY = CY(18);
-        const botY = CY(82);
-        walls.push({ x: CX(50), y: topY, w: CX(100), h: 16 });
-        walls.push({ x: CX(50), y: botY, w: CX(100), h: 16 });
+        // road bounds
+        walls.push({ x: CX(50), y: CY(18), w: CX(100), h: 16, type:"curb" });
+        walls.push({ x: CX(50), y: CY(82), w: CX(100), h: 16, type:"curb" });
 
         CAR.x = CX(12);
         CAR.y = CY(62);
@@ -456,62 +444,43 @@
         CAR.gear = 1;
         updateGearUI();
 
-        // cones in pairs + a "gate" line to reward perfect
-        meta.gates = [];
-        const n = 8;
         const baseY = CY(50);
-        for (let i = 0; i < n; i++) {
+        const n = 9;
+        for (let i=0;i<n;i++){
           const x = lerp(CX(22), CX(80), i/(n-1));
-          const offset = (i % 2 === 0 ? -1 : 1) * rand(44, 78);
+          const offset = (i%2===0 ? -1 : 1) * rand(44, 78);
           const y = baseY + offset + rand(-10, 10);
-
           cones.push({ x, y, r: 14, hit: false });
-          // Add a gate center slightly ahead of cone
-          meta.gates.push({ x: x + 18, y: baseY, w: 70, passed: false });
         }
 
         target = { x: CX(88), y: CY(50), w: 130, h: 96, a: 0 };
-        setMsg("Trajectoire douce. Petits mouvements de volant.");
+        setMsg("Regarde loin devant. Volant doux.");
       },
-      update(dt) {
-        // reward passing gates cleanly: if car crosses gate x and is near center line
-        for (const g of meta.gates) {
-          if (g.passed) continue;
-          if (CAR.x > g.x) {
-            g.passed = true;
-            const dist = Math.abs(CAR.y - g.y);
-            if (dist < 42 && stats.coneHits === 0 && stats.wallHits === 0) {
-              rewardPerfect("Passage propre");
-            } else if (dist < 42) {
-              // small reward even after mistakes
-              combo = Math.min(1.4, combo + 0.02);
-              hudCombo.textContent = combo.toFixed(1);
-            }
-          }
-        }
-      }
+      update(dt) {}
     },
 
-    // 3) Créneau néon (reverse required) + precision scoring
+    // 3) Créneau
     {
-      title: "3) CRÉNEAU CHALLENGE",
-      intro: "Marche arrière obligatoire. Précision = meilleur résultat.",
+      title: "3) CRÉNEAU",
+      intro: "Marche arrière obligatoire. Précision = meilleur chrono.",
       setup() {
         resetWorld();
 
         const roadY = CY(64);
 
-        walls.push({ x: CX(50), y: roadY - 98, w: CX(100), h: 16 });
-        walls.push({ x: CX(50), y: roadY + 98, w: CX(100), h: 16 });
+        walls.push({ x: CX(50), y: roadY - 98, w: CX(100), h: 16, type:"curb" });
+        walls.push({ x: CX(50), y: roadY + 98, w: CX(100), h: 16, type:"curb" });
 
         // sidewalk right
-        walls.push({ x: CX(82), y: roadY - 4, w: 14, h: 260 });
+        walls.push({ x: CX(82), y: roadY - 4, w: 14, h: 260, type:"curb" });
 
-        // parked blocks
+        // parked cars blocks (visual + collision)
         const px = CX(56);
         const py = roadY - 40;
-        walls.push({ x: px - 120, y: py, w: 36, h: 76 });
-        walls.push({ x: px + 120, y: py, w: 36, h: 76 });
+        parked.push({ x: px - 120, y: py, w: 40, h: 78, color:"#c23b3b" });
+        parked.push({ x: px + 120, y: py, w: 40, h: 78, color:"#d2a43a" });
+        walls.push({ x: px - 120, y: py, w: 40, h: 78, type:"car" });
+        walls.push({ x: px + 120, y: py, w: 40, h: 78, type:"car" });
 
         CAR.x = CX(14);
         CAR.y = roadY + 42;
@@ -526,7 +495,7 @@
         meta.mustReverse = true;
         meta.reversed = false;
 
-        setMsg("Passe en R et gare-toi dans la zone.");
+        setMsg("Passe en R et rentre dans la zone.");
       },
       update(dt) {
         if (CAR.gear === -1 && Math.abs(CAR.v) > 12) meta.reversed = true;
@@ -535,94 +504,64 @@
   ];
 
   // =========================
-  // Missions
+  // Mission
   // =========================
   function pickMission() {
-    // choose 1 mission, prioritize variety
-    const candidates = missionPool.slice();
-    mission = candidates[Math.floor(Math.random() * candidates.length)];
+    mission = missionPool[Math.floor(Math.random() * missionPool.length)];
     hudMission.textContent = `🎯 Mission : ${mission.label}`;
   }
 
   // =========================
-  // Controls
+  // Input
   // =========================
-  const keys = { up: false, down: false, left: false, right: false };
+  const keys = { up:false, down:false, left:false, right:false };
 
   window.addEventListener("keydown", (e) => {
     if (["ArrowUp","ArrowDown","ArrowLeft","ArrowRight"," ","Shift","z","q","s","d"].includes(e.key)) e.preventDefault();
     switch (e.key) {
-      case "ArrowLeft":
-      case "q":
-        keys.left = true;
-        break;
-      case "ArrowRight":
-      case "d":
-        keys.right = true;
-        break;
-      case "ArrowUp":
-      case "z":
-        keys.up = true;
-        break;
-      case "ArrowDown":
-      case "s":
-        keys.down = true;
-        break;
-      case " ":
-      case "Shift":
-        toggleGear();
-        break;
+      case "ArrowLeft": case "q": keys.left = true; break;
+      case "ArrowRight": case "d": keys.right = true; break;
+      case "ArrowUp": case "z": keys.up = true; break;
+      case "ArrowDown": case "s": keys.down = true; break;
+      case " ": case "Shift": toggleGear(); break;
     }
-  }, { passive: false });
+  }, { passive:false });
 
   window.addEventListener("keyup", (e) => {
     switch (e.key) {
-      case "ArrowLeft":
-      case "q":
-        keys.left = false;
-        break;
-      case "ArrowRight":
-      case "d":
-        keys.right = false;
-        break;
-      case "ArrowUp":
-      case "z":
-        keys.up = false;
-        break;
-      case "ArrowDown":
-      case "s":
-        keys.down = false;
-        break;
+      case "ArrowLeft": case "q": keys.left = false; break;
+      case "ArrowRight": case "d": keys.right = false; break;
+      case "ArrowUp": case "z": keys.up = false; break;
+      case "ArrowDown": case "s": keys.down = false; break;
     }
   });
 
-  // Touch hold helpers
   function bindHold(btn, down, up) {
-    btn.addEventListener("touchstart", (e) => { e.preventDefault(); down(); }, { passive: false });
-    btn.addEventListener("touchend", (e) => { e.preventDefault(); up(); }, { passive: false });
-    btn.addEventListener("touchcancel", (e) => { e.preventDefault(); up(); }, { passive: false });
-    btn.addEventListener("mousedown", (e) => { e.preventDefault(); down(); });
+    btn.addEventListener("touchstart", (e)=>{ e.preventDefault(); down(); }, { passive:false });
+    btn.addEventListener("touchend", (e)=>{ e.preventDefault(); up(); }, { passive:false });
+    btn.addEventListener("touchcancel", (e)=>{ e.preventDefault(); up(); }, { passive:false });
+    btn.addEventListener("mousedown", (e)=>{ e.preventDefault(); down(); });
     window.addEventListener("mouseup", up);
   }
 
-  bindHold(btnGas, () => (CAR.inputs.gas = true), () => (CAR.inputs.gas = false));
-  bindHold(btnBrake, () => (CAR.inputs.brake = true), () => (CAR.inputs.brake = false));
+  bindHold(btnGas, ()=> (CAR.inputs.gas = true), ()=> (CAR.inputs.gas = false));
+  bindHold(btnBrake, ()=> (CAR.inputs.brake = true), ()=> (CAR.inputs.brake = false));
 
-  btnGear.addEventListener("touchstart", (e) => { e.preventDefault(); toggleGear(); }, { passive: false });
-  btnGear.addEventListener("mousedown", (e) => { e.preventDefault(); toggleGear(); });
+  btnGear.addEventListener("touchstart", (e)=>{ e.preventDefault(); toggleGear(); }, { passive:false });
+  btnGear.addEventListener("mousedown", (e)=>{ e.preventDefault(); toggleGear(); });
 
-  // Steering wheel (smoother + spring return)
+  // Steering wheel
   let isSteering = false;
   let wheelTouchId = null;
 
   function steerFromPoint(clientX, clientY) {
     const rect = wheelZone.getBoundingClientRect();
-    const cx = rect.left + rect.width / 2;
-    const cy = rect.top + rect.height / 2;
+    const cx = rect.left + rect.width/2;
+    const cy = rect.top + rect.height/2;
     const dx = clientX - cx;
     const dy = clientY - cy;
 
-    let angle = Math.atan2(dy, dx) * (180 / Math.PI);
+    let angle = Math.atan2(dy, dx) * (180/Math.PI);
     angle += 90;
     if (angle > 180) angle -= 360;
     if (angle < -180) angle += 360;
@@ -634,23 +573,23 @@
     CAR.inputs.steerTarget = angle / maxAngle;
   }
 
-  wheelZone.addEventListener("touchstart", (e) => {
+  wheelZone.addEventListener("touchstart", (e)=>{
     e.preventDefault();
     const t = e.changedTouches[0];
     wheelTouchId = t.identifier;
     isSteering = true;
     steerFromPoint(t.clientX, t.clientY);
-  }, { passive: false });
+  }, { passive:false });
 
-  wheelZone.addEventListener("touchmove", (e) => {
+  wheelZone.addEventListener("touchmove", (e)=>{
     e.preventDefault();
     if (!isSteering) return;
     for (const t of e.changedTouches) {
       if (t.identifier === wheelTouchId) steerFromPoint(t.clientX, t.clientY);
     }
-  }, { passive: false });
+  }, { passive:false });
 
-  function endSteer(e) {
+  function endSteer(e){
     for (const t of e.changedTouches) {
       if (t.identifier === wheelTouchId) {
         isSteering = false;
@@ -659,13 +598,13 @@
       }
     }
   }
-  wheelZone.addEventListener("touchend", endSteer, { passive: false });
-  wheelZone.addEventListener("touchcancel", endSteer, { passive: false });
+  wheelZone.addEventListener("touchend", endSteer, { passive:false });
+  wheelZone.addEventListener("touchcancel", endSteer, { passive:false });
 
-  // mouse fallback
-  wheelZone.addEventListener("mousedown", (e) => { isSteering = true; steerFromPoint(e.clientX, e.clientY); });
-  window.addEventListener("mousemove", (e) => { if (isSteering) steerFromPoint(e.clientX, e.clientY); });
-  window.addEventListener("mouseup", () => { isSteering = false; if (!keys.left && !keys.right) CAR.inputs.steerTarget = 0; });
+  // Mouse fallback
+  wheelZone.addEventListener("mousedown", (e)=>{ isSteering = true; steerFromPoint(e.clientX, e.clientY); });
+  window.addEventListener("mousemove", (e)=>{ if (isSteering) steerFromPoint(e.clientX, e.clientY); });
+  window.addEventListener("mouseup", ()=>{ isSteering = false; if (!keys.left && !keys.right) CAR.inputs.steerTarget = 0; });
 
   // =========================
   // Start / End UI
@@ -674,28 +613,28 @@
     btnModeContest.classList.toggle("active", mode === "CONTEST");
     btnModePractice.classList.toggle("active", mode === "PRACTICE");
   }
-  btnModeContest.addEventListener("click", () => { mode = "CONTEST"; setModeButtons(); sfx("click"); });
-  btnModePractice.addEventListener("click", () => { mode = "PRACTICE"; setModeButtons(); sfx("click"); });
+  btnModeContest.addEventListener("click", ()=>{ mode="CONTEST"; setModeButtons(); sfx("click"); });
+  btnModePractice.addEventListener("click", ()=>{ mode="PRACTICE"; setModeButtons(); sfx("click"); });
 
-  btnStart.addEventListener("click", () => {
+  btnStart.addEventListener("click", ()=>{
     const name = inpName.value.trim();
     if (!name) return alert("Entre un pseudo 😉");
     startRun(name);
   });
 
-  btnQuit.addEventListener("click", () => {
+  btnQuit.addEventListener("click", ()=>{
     if (!confirm("Retour au menu ?")) return;
     toMenu();
   });
 
-  btnReplay.addEventListener("click", () => {
+  btnReplay.addEventListener("click", ()=>{
     if (!lastName) return toMenu();
     startRun(lastName);
   });
 
   btnMenu.addEventListener("click", toMenu);
 
-  btnCopy.addEventListener("click", async () => {
+  btnCopy.addEventListener("click", async ()=>{
     const text = buildShareText();
     try {
       await navigator.clipboard.writeText(text);
@@ -712,15 +651,14 @@
     }
   });
 
-  function toMenu() {
-    state = "MENU";
+  function toMenu(){
+    state="MENU";
     hud.classList.add("hidden");
     screenEnd.classList.add("hidden");
     screenStart.classList.remove("hidden");
   }
 
-  function startRun(name) {
-    // audio resume on gesture
+  function startRun(name){
     if (audio.ctx && audio.ctx.state === "suspended") audio.ctx.resume();
 
     playerName = name;
@@ -731,30 +669,26 @@
     resetRunStats();
     pickMission();
 
-    // show game
     screenStart.classList.add("hidden");
     screenEnd.classList.add("hidden");
     hud.classList.remove("hidden");
-    state = "PLAY";
+    state="PLAY";
 
-    // init world
+    hudTime.textContent = "00.00";
+    hudPen.textContent = "0";
+    hudClean.textContent = "Clean";
+
     levelIndex = 0;
     loadLevel(levelIndex);
-
-    // UI
-    hudPen.textContent = "0";
-    hudTime.textContent = "00.00";
-    hudCombo.textContent = combo.toFixed(1);
   }
 
-  function loadLevel(i) {
+  function loadLevel(i){
     levelIndex = i;
     const lvl = LEVELS[i];
     hudLevel.textContent = lvl.title;
     setMsg(lvl.intro);
     showToast("ÉPREUVE", lvl.title, 750);
 
-    // reset car inputs
     CAR.inputs.gas = false;
     CAR.inputs.brake = false;
     CAR.inputs.steerTarget = 0;
@@ -764,7 +698,7 @@
   }
 
   // =========================
-  // Collisions / Win checks
+  // Collisions / win
   // =========================
   function getCarCorners(x, y, a) {
     const cos = Math.cos(a), sin = Math.sin(a);
@@ -781,28 +715,26 @@
     return (px > t.x - t.w / 2 && px < t.x + t.w / 2 && py > t.y - t.h / 2 && py < t.y + t.h / 2);
   }
 
-  function handleCollisions() {
-    // bounds soft
-    if (CAR.x < -10 || CAR.x > W() + 10 || CAR.y < -10 || CAR.y > H() + 10) {
+  function handleCollisions(){
+    // bounds
+    if (CAR.x < -10 || CAR.x > W()+10 || CAR.y < -10 || CAR.y > H()+10) {
       addPenalty(4, "Sortie de zone", "wall");
-      CAR.x = clamp(CAR.x, 20, W() - 20);
-      CAR.y = clamp(CAR.y, 20, H() - 20);
+      CAR.x = clamp(CAR.x, 20, W()-20);
+      CAR.y = clamp(CAR.y, 20, H()-20);
       CAR.v *= -0.35;
-      spawnParticles(CAR.x, CAR.y, 12, "rgba(255,59,92,0.9)");
       return;
     }
 
     const corners = getCarCorners(CAR.x, CAR.y, CAR.a);
 
     for (const w of walls) {
-      const L = w.x - w.w / 2, R = w.x + w.w / 2, T = w.y - w.h / 2, B = w.y + w.h / 2;
+      const L = w.x - w.w/2, R = w.x + w.w/2, T = w.y - w.h/2, B = w.y + w.h/2;
       for (const p of corners) {
         if (p.x > L && p.x < R && p.y > T && p.y < B) {
           addPenalty(4, "Collision", "wall");
           CAR.x -= Math.cos(CAR.a) * 18;
           CAR.y -= Math.sin(CAR.a) * 18;
           CAR.v *= -0.35;
-          spawnParticles(CAR.x, CAR.y, 12, "rgba(255,61,240,0.9)");
           return;
         }
       }
@@ -814,20 +746,19 @@
         if (Math.hypot(p.x - c.x, p.y - c.y) < c.r + 7) {
           c.hit = true;
           addPenalty(2, "Cône touché", "cone");
-          spawnParticles(c.x, c.y, 10, "rgba(255,204,102,0.95)");
           return;
         }
       }
     }
   }
 
-  function checkWin(dt) {
+  function checkWin(dt){
     if (!target) return;
 
     const near = Math.hypot(CAR.x - target.x, CAR.y - target.y) < Math.max(target.w, target.h) * 0.85;
     const stopped = Math.abs(CAR.v) < 14;
 
-    // level 3 rule
+    // rule for reverse on level 3
     if (levelIndex === 2 && meta.mustReverse && !meta.reversed) {
       if (near) setMsg("Marche arrière obligatoire (R).");
       winHold = 0;
@@ -837,16 +768,16 @@
     if (near && stopped) {
       winHold += dt * 1000;
       if (winHold > 850) {
-        // precision scoring
         const corners = getCarCorners(CAR.x, CAR.y, CAR.a);
         let inside = 0;
         for (const p of corners) if (pointInTarget(p.x, p.y, target)) inside++;
 
-        if (inside === 4) {
-          rewardPerfect("Validation parfaite");
-        } else {
-          const extra = (4 - inside) * 1.0; // 1..4
+        if (inside !== 4) {
+          const extra = (4 - inside) * 1.0;
           addPenalty(extra, "Précision", "precision");
+        } else {
+          sfx("ok");
+          showToast("VALIDÉ", "Précis", 700);
         }
 
         nextLevel();
@@ -859,13 +790,13 @@
     }
   }
 
-  function nextLevel() {
-    state = "TRANSITION";
-    setTimeout(() => {
+  function nextLevel(){
+    state="TRANSITION";
+    setTimeout(()=>{
       if (levelIndex + 1 >= LEVELS.length) finish();
       else {
         loadLevel(levelIndex + 1);
-        state = "PLAY";
+        state="PLAY";
       }
     }, 520);
   }
@@ -874,7 +805,6 @@
   // Finish / scoring
   // =========================
   function medalAndGrade(finalTime, pen) {
-    // medal is generous but meaningful
     let medal = "🎯 PARTICIPATION";
     if (pen <= 3 && finalTime < 60) medal = "🥇 OR";
     else if (pen <= 8 && finalTime < 75) medal = "🥈 ARGENT";
@@ -888,11 +818,10 @@
     return { medal, grade };
   }
 
-  function finish() {
-    state = "FINISHED";
+  function finish(){
+    state="FINISHED";
 
-    // clean bonus (encourage replay)
-    const cleanBonus = cleanRun ? 1.0 : 0.0; // -1s if perfectly clean
+    const cleanBonus = cleanRun ? 1.0 : 0.0;
     const raw = elapsed();
     const finalTime = Math.max(0, raw - cleanBonus);
     stats.finalTime = finalTime;
@@ -900,7 +829,6 @@
     const { medal, grade } = medalAndGrade(finalTime, penalty);
     const missionOk = mission ? mission.check(stats) : false;
 
-    // UI
     resName.textContent = playerName;
     resTime.textContent = `${finalTime.toFixed(2)}s`;
     resPen.textContent = `+${Math.round(penalty)}s`;
@@ -910,27 +838,21 @@
     resClean.textContent = cleanRun ? "✅ Oui (-1s)" : "❌ Non";
 
     const tips = [];
-    if (!missionOk && mission?.id === "fast") tips.push("Conseil : slalom = petits mouvements de volant, pas d’à-coups.");
     if (stats.falseStart) tips.push("Conseil : attendre le vert à l’épreuve 1.");
-    if (stats.coneHits) tips.push("Conseil : regarde loin devant, pas le cône.");
+    if (stats.coneHits) tips.push("Conseil : slalom = petits mouvements de volant.");
     if (stats.wallHits) tips.push("Conseil : freine avant de tourner, puis ré-accélère.");
     if (stats.precisionPen) tips.push("Conseil : au créneau, immobilise la voiture avant validation.");
-
     resTip.textContent = tips.length ? tips.join(" ") : "Très bon résultat. Rejoue pour améliorer ton chrono.";
 
-    sfx("medal");
-    vib(40);
-
-    // show end screen
     hud.classList.add("hidden");
     screenEnd.classList.remove("hidden");
   }
 
-  function buildShareText() {
-    const txtMission = (mission ? `${mission.label}` : "—");
+  function buildShareText(){
+    const txtMission = mission ? mission.label : "—";
     const ok = mission ? (mission.check(stats) ? "OK" : "NON") : "—";
     const clean = cleanRun ? "OUI (-1s)" : "NON";
-    return `LE DÉFI BOULARI — V3 NÉON ⚡
+    return `LE DÉFI BOULARI — V3 ROUTE NC 🚗
 Pilote : ${playerName}
 Temps : ${stats.finalTime.toFixed(2)}s
 Pénalités : +${Math.round(penalty)}s
@@ -943,19 +865,18 @@ Run clean : ${clean}
   // =========================
   // Update loop
   // =========================
-  function update(dt) {
+  function update(dt){
     if (state !== "PLAY") return;
 
-    // steering target from keyboard if not touch steering
+    // keyboard steering if not touching wheel
     if (!isSteering) {
       if (keys.left) CAR.inputs.steerTarget = -1;
       else if (keys.right) CAR.inputs.steerTarget = 1;
       else CAR.inputs.steerTarget = 0;
     }
 
-    // spring wheel UI return
-    const wheelAngleDeg = CAR.inputs.steerTarget * 120;
-    wheelVisual.style.transform = `rotate(${wheelAngleDeg}deg)`;
+    // wheel UI
+    wheelVisual.style.transform = `rotate(${CAR.inputs.steerTarget * 120}deg)`;
 
     // smooth steer
     const steerTarget = CAR.inputs.steerTarget * MAX_STEER;
@@ -964,7 +885,7 @@ Run clean : ${clean}
     const gas = CAR.inputs.gas || keys.up;
     const brake = CAR.inputs.brake || keys.down;
 
-    // timer starts on first movement (all levels)
+    // timer starts on any movement (unless level 1 already started at green)
     if (startTimeMs === null) {
       const moving = gas || brake || Math.abs(CAR.v) > 12;
       if (moving) ensureTimerStarted();
@@ -982,10 +903,8 @@ Run clean : ${clean}
       if (Math.abs(CAR.v) < 2) CAR.v = 0;
     }
 
-    // clamp speed
     CAR.v = clamp(CAR.v, -MAX_V_REV, MAX_V_FWD);
 
-    // bicycle model
     if (Math.abs(CAR.v) > 0.5) {
       const angVel = (CAR.v / WHEELBASE) * Math.tan(CAR.steer);
       CAR.a += angVel * dt;
@@ -993,61 +912,38 @@ Run clean : ${clean}
       CAR.y += Math.sin(CAR.a) * CAR.v * dt;
     }
 
-    // level update
+    // level logic
     const lvl = LEVELS[levelIndex];
     lvl.update && lvl.update(dt);
 
-    // combo decay (keep it “alive”)
-    comboDecay += dt;
-    if (comboDecay > 2.0 && combo > 1.0) {
-      combo = Math.max(1.0, combo - dt * 0.06);
-      hudCombo.textContent = combo.toFixed(1);
-    }
-
-    // collisions
     handleCollisions();
-
-    // win check
     checkWin(dt);
 
-    // particles update
-    for (let i = particles.length - 1; i >= 0; i--) {
-      const p = particles[i];
-      p.t += dt;
-      p.x += p.vx * dt;
-      p.y += p.vy * dt;
-      p.vx *= 0.92;
-      p.vy *= 0.92;
-      if (p.t > p.life) particles.splice(i, 1);
-    }
-
-    // HUD time
     hudTime.textContent = elapsed().toFixed(2);
   }
 
   // =========================
-  // Draw (Neon world)
+  // Draw (Road NC)
   // =========================
-  function draw() {
+  function draw(){
     const w = W(), h = H();
-    ctx.clearRect(0, 0, w, h);
+    ctx.clearRect(0,0,w,h);
 
     // camera shake
     let ox = 0, oy = 0;
     if (shake > 0.2) {
-      ox = (Math.random() * 2 - 1) * shake;
-      oy = (Math.random() * 2 - 1) * shake;
+      ox = (Math.random()*2-1) * shake;
+      oy = (Math.random()*2-1) * shake;
       shake *= 0.86;
     } else shake = 0;
 
     ctx.save();
     ctx.translate(ox, oy);
 
-    // background grid
-    drawNeonGrid();
+    if (chkWeather.checked) drawEnvironment();
+    drawRoadBand();
 
-    // road band based on level (simple but stylish)
-    drawRoad();
+    if (levelIndex === 0 && state === "PLAY") drawStopLineAndLight();
 
     // target
     if (target) drawTarget(target);
@@ -1055,228 +951,218 @@ Run clean : ${clean}
     // walls
     for (const w of walls) drawWall(w);
 
+    // parked cars visual
+    for (const p of parked) drawParkedCar(p);
+
     // cones
     for (const c of cones) drawCone(c);
-
-    // traffic light
-    if (levelIndex === 0 && state === "PLAY") drawLight();
 
     // car
     drawCar();
 
-    // particles
-    drawParticles();
-
     ctx.restore();
   }
 
-  function drawNeonGrid() {
-    const w = W(), h = H();
-    ctx.save();
-    ctx.globalAlpha = 0.22;
+  function drawEnvironment(){
+    // grass top + bottom like road shoulders
+    ctx.fillStyle = grassPattern || "#2f6f3a";
+    ctx.fillRect(0,0,W(), H());
+  }
 
-    // vignette
-    const g = ctx.createRadialGradient(w * 0.5, h * 0.45, 80, w * 0.5, h * 0.45, Math.max(w, h) * 0.75);
-    g.addColorStop(0, "rgba(255,255,255,0.04)");
-    g.addColorStop(1, "rgba(0,0,0,0.55)");
+  function drawRoadBand(){
+    const roadTop = CY(22);
+    const roadBot = CY(82);
+
+    // asphalt band
+    ctx.fillStyle = asphaltPattern || "#3d3f44";
+    ctx.fillRect(0, roadTop, W(), roadBot-roadTop);
+
+    // slight vignette
+    const g = ctx.createRadialGradient(W()*0.5, H()*0.5, 100, W()*0.5, H()*0.5, Math.max(W(),H())*0.7);
+    g.addColorStop(0, "rgba(255,255,255,0.03)");
+    g.addColorStop(1, "rgba(0,0,0,0.45)");
     ctx.fillStyle = g;
-    ctx.fillRect(0, 0, w, h);
+    ctx.fillRect(0,0,W(),H());
 
-    // grid lines
-    ctx.lineWidth = 1;
-    ctx.strokeStyle = "rgba(0,229,255,0.12)";
-    const step = 34;
-    for (let x = 0; x < w; x += step) {
-      ctx.beginPath();
-      ctx.moveTo(x, 0);
-      ctx.lineTo(x, h);
-      ctx.stroke();
-    }
-    for (let y = 0; y < h; y += step) {
-      ctx.beginPath();
-      ctx.moveTo(0, y);
-      ctx.lineTo(w, y);
-      ctx.stroke();
-    }
-
-    ctx.restore();
-  }
-
-  function drawRoad() {
-    const w = W(), h = H();
-    ctx.save();
-
-    // asphalt base
-    ctx.fillStyle = "rgba(0,0,0,0.30)";
-    ctx.fillRect(0, 0, w, h);
-
-    // center neon lane (subtle)
-    ctx.strokeStyle = "rgba(255,61,240,0.12)";
+    // lane markings (center dashed)
+    ctx.strokeStyle = "rgba(241,245,249,0.85)";
     ctx.lineWidth = 4;
-    ctx.setLineDash([20, 16]);
+    ctx.setLineDash([20, 18]);
     ctx.beginPath();
-    ctx.moveTo(0, h * 0.5);
-    ctx.lineTo(w, h * 0.5);
+    ctx.moveTo(0, (roadTop+roadBot)/2);
+    ctx.lineTo(W(), (roadTop+roadBot)/2);
     ctx.stroke();
     ctx.setLineDash([]);
 
+    // edge lines
+    ctx.strokeStyle = "rgba(241,245,249,0.60)";
+    ctx.lineWidth = 3;
+    ctx.beginPath();
+    ctx.moveTo(0, roadTop+6);
+    ctx.lineTo(W(), roadTop+6);
+    ctx.moveTo(0, roadBot-6);
+    ctx.lineTo(W(), roadBot-6);
+    ctx.stroke();
+  }
+
+  function drawStopLineAndLight(){
+    // stop line
+    ctx.strokeStyle = "rgba(241,245,249,0.92)";
+    ctx.lineWidth = 8;
+    ctx.beginPath();
+    ctx.moveTo(meta.stopLineX, CY(55));
+    ctx.lineTo(meta.stopLineX, CY(78));
+    ctx.stroke();
+
+    // traffic light
+    drawLight(meta.lightX, meta.lightY, meta.light);
+  }
+
+  function drawLight(x,y,state){
+    // pole
+    ctx.fillStyle = "rgba(0,0,0,0.5)";
+    ctx.fillRect(x-7,y,14,92);
+
+    // box
+    ctx.fillStyle = "rgba(10,12,16,0.75)";
+    ctx.strokeStyle = "rgba(255,255,255,0.18)";
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.roundRect(x-34, y-74, 68, 74, 14);
+    ctx.fill();
+    ctx.stroke();
+
+    const redOn = state === "RED";
+    const greenOn = state === "GREEN";
+
+    drawDot(x, y-48, 12, redOn ? "rgba(255,80,80,1)" : "rgba(255,80,80,0.20)", redOn);
+    drawDot(x, y-20, 12, greenOn ? "rgba(59,214,107,1)" : "rgba(59,214,107,0.20)", greenOn);
+  }
+
+  function drawDot(x,y,r,color,on){
+    ctx.save();
+    if (on) { ctx.shadowColor = color; ctx.shadowBlur = 18; }
+    ctx.fillStyle = color;
+    ctx.beginPath(); ctx.arc(x,y,r,0,Math.PI*2); ctx.fill();
     ctx.restore();
   }
 
-  function drawTarget(t) {
+  function drawTarget(t){
     ctx.save();
-    ctx.translate(t.x, t.y);
+    ctx.translate(t.x,t.y);
 
-    // neon glow border
-    ctx.shadowColor = "rgba(45,255,154,0.60)";
-    ctx.shadowBlur = 22;
-
-    ctx.strokeStyle = "rgba(45,255,154,0.95)";
+    // green target rectangle
+    ctx.strokeStyle = "rgba(59,214,107,0.95)";
     ctx.lineWidth = 4;
-    ctx.setLineDash([10, 10]);
-    ctx.strokeRect(-t.w / 2, -t.h / 2, t.w, t.h);
+    ctx.setLineDash([10,10]);
+    ctx.strokeRect(-t.w/2, -t.h/2, t.w, t.h);
     ctx.setLineDash([]);
-
-    ctx.shadowBlur = 0;
-    ctx.fillStyle = "rgba(45,255,154,0.12)";
-    ctx.fillRect(-t.w / 2, -t.h / 2, t.w, t.h);
+    ctx.fillStyle = "rgba(59,214,107,0.12)";
+    ctx.fillRect(-t.w/2, -t.h/2, t.w, t.h);
 
     // arrow
     ctx.fillStyle = "rgba(255,255,255,0.65)";
     ctx.beginPath();
-    ctx.moveTo(0, -t.h / 2 - 14);
-    ctx.lineTo(-10, -t.h / 2);
-    ctx.lineTo(10, -t.h / 2);
+    ctx.moveTo(0, -t.h/2 - 14);
+    ctx.lineTo(-10, -t.h/2);
+    ctx.lineTo(10, -t.h/2);
     ctx.closePath();
     ctx.fill();
 
     ctx.restore();
   }
 
-  function drawWall(w) {
+  function drawWall(w){
     ctx.save();
-    ctx.fillStyle = "rgba(220,235,255,0.40)";
-    ctx.strokeStyle = "rgba(0,229,255,0.25)";
-    ctx.lineWidth = 2;
-
-    ctx.shadowColor = "rgba(0,229,255,0.18)";
-    ctx.shadowBlur = 14;
-
-    ctx.beginPath();
-    ctx.roundRect(w.x - w.w / 2, w.y - w.h / 2, w.w, w.h, 10);
-    ctx.fill();
-    ctx.stroke();
-
-    ctx.shadowBlur = 0;
-    ctx.strokeStyle = "rgba(255,255,255,0.22)";
-    ctx.beginPath();
-    ctx.moveTo(w.x - w.w / 2, w.y - w.h / 2);
-    ctx.lineTo(w.x + w.w / 2, w.y + w.h / 2);
-    ctx.stroke();
-
-    ctx.restore();
-  }
-
-  function drawCone(c) {
-    ctx.save();
-    ctx.translate(c.x, c.y);
-    ctx.globalAlpha = c.hit ? 0.28 : 1;
-
-    ctx.shadowColor = "rgba(255,204,102,0.55)";
-    ctx.shadowBlur = 18;
-
-    ctx.fillStyle = "rgba(255,204,102,0.95)";
-    ctx.beginPath();
-    ctx.arc(0, 0, c.r, 0, Math.PI * 2);
-    ctx.fill();
-
-    ctx.shadowBlur = 0;
-    ctx.strokeStyle = "rgba(0,0,0,0.25)";
-    ctx.lineWidth = 2;
-    ctx.stroke();
-
-    ctx.fillStyle = "rgba(0,0,0,0.25)";
-    ctx.beginPath();
-    ctx.arc(0, 0, c.r * 0.45, 0, Math.PI * 2);
-    ctx.fill();
-
-    ctx.restore();
-  }
-
-  function drawLight() {
-    const x = meta.lightX, y = meta.lightY;
-
-    ctx.save();
-    // pole
-    ctx.fillStyle = "rgba(0,0,0,0.45)";
-    ctx.fillRect(x - 7, y, 14, 92);
-
-    // box
-    ctx.fillStyle = "rgba(0,0,0,0.60)";
-    ctx.strokeStyle = "rgba(255,255,255,0.12)";
+    if (w.type === "curb") {
+      ctx.fillStyle = "rgba(207,214,223,0.75)";
+      ctx.strokeStyle = "rgba(0,0,0,0.25)";
+    } else if (w.type === "car") {
+      ctx.fillStyle = "rgba(180,190,205,0.35)";
+      ctx.strokeStyle = "rgba(255,255,255,0.18)";
+    } else {
+      ctx.fillStyle = "rgba(200,210,220,0.55)";
+      ctx.strokeStyle = "rgba(0,0,0,0.25)";
+    }
     ctx.lineWidth = 2;
     ctx.beginPath();
-    ctx.roundRect(x - 34, y - 74, 68, 74, 16);
+    ctx.roundRect(w.x - w.w/2, w.y - w.h/2, w.w, w.h, 10);
     ctx.fill();
     ctx.stroke();
 
-    const redOn = meta.light === "RED";
-    const greenOn = meta.light === "GREEN";
-
-    glowDot(x, y - 48, 12, redOn ? "rgba(255,59,92,1)" : "rgba(255,59,92,0.18)", redOn);
-    glowDot(x, y - 20, 12, greenOn ? "rgba(45,255,154,1)" : "rgba(45,255,154,0.18)", greenOn);
-
-    // optional “countdown shimmer” when red
-    if (redOn) {
-      ctx.globalAlpha = 0.55;
-      ctx.fillStyle = "rgba(0,229,255,0.10)";
+    // diagonal stripe for curb
+    if (w.type === "curb") {
+      ctx.strokeStyle = "rgba(255,255,255,0.25)";
       ctx.beginPath();
-      ctx.roundRect(x - 26, y - 10, 52, 16, 8);
-      ctx.fill();
-      ctx.globalAlpha = 1;
+      ctx.moveTo(w.x - w.w/2, w.y - w.h/2);
+      ctx.lineTo(w.x + w.w/2, w.y + w.h/2);
+      ctx.stroke();
     }
-
     ctx.restore();
   }
 
-  function glowDot(x, y, r, color, on) {
+  function drawParkedCar(p){
     ctx.save();
-    if (on) {
-      ctx.shadowColor = color;
-      ctx.shadowBlur = 22;
-    }
-    ctx.fillStyle = color;
-    ctx.beginPath();
-    ctx.arc(x, y, r, 0, Math.PI * 2);
-    ctx.fill();
-    ctx.restore();
-  }
-
-  function drawCar() {
-    ctx.save();
-    ctx.translate(CAR.x, CAR.y);
-    ctx.rotate(CAR.a + Math.PI / 2);
+    ctx.translate(p.x,p.y);
 
     // shadow
     ctx.globalAlpha = 0.25;
     ctx.fillStyle = "black";
     ctx.beginPath();
-    ctx.ellipse(0, 8, 18, 28, 0, 0, Math.PI * 2);
+    ctx.ellipse(0, 6, p.w*0.55, p.h*0.55, 0, 0, Math.PI*2);
     ctx.fill();
     ctx.globalAlpha = 1;
 
-    // neon underglow
-    ctx.shadowColor = "rgba(0,229,255,0.30)";
-    ctx.shadowBlur = 18;
-    ctx.fillStyle = "rgba(0,229,255,0.08)";
+    // body
+    ctx.fillStyle = p.color;
+    ctx.strokeStyle = "rgba(0,0,0,0.25)";
+    ctx.lineWidth = 2;
     ctx.beginPath();
-    ctx.roundRect(-18, -36, 36, 72, 12);
+    ctx.roundRect(-p.w/2, -p.h/2, p.w, p.h, 10);
+    ctx.fill();
+    ctx.stroke();
+
+    // windows
+    ctx.fillStyle = "rgba(10,20,40,0.55)";
+    ctx.beginPath();
+    ctx.roundRect(-p.w*0.30, -p.h*0.25, p.w*0.60, p.h*0.28, 8);
     ctx.fill();
 
+    ctx.restore();
+  }
+
+  function drawCone(c){
+    ctx.save();
+    ctx.translate(c.x,c.y);
+    ctx.globalAlpha = c.hit ? 0.25 : 1;
+
+    ctx.fillStyle = "rgba(246,195,67,0.95)";
+    ctx.beginPath(); ctx.arc(0,0,c.r,0,Math.PI*2); ctx.fill();
+    ctx.strokeStyle = "rgba(0,0,0,0.25)";
+    ctx.lineWidth = 2; ctx.stroke();
+
+    ctx.fillStyle = "rgba(255,255,255,0.70)";
+    ctx.beginPath(); ctx.arc(0,0,c.r*0.45,0,Math.PI*2); ctx.fill();
+
+    ctx.restore();
+  }
+
+  function drawCar(){
+    ctx.save();
+    ctx.translate(CAR.x, CAR.y);
+    ctx.rotate(CAR.a + Math.PI/2);
+
+    // shadow
+    ctx.globalAlpha = 0.28;
+    ctx.fillStyle = "black";
+    ctx.beginPath();
+    ctx.ellipse(0, 8, 18, 28, 0, 0, Math.PI*2);
+    ctx.fill();
+    ctx.globalAlpha = 1;
+
     // body
-    ctx.shadowBlur = 0;
     ctx.fillStyle = "rgba(255,255,255,0.92)";
-    ctx.strokeStyle = "rgba(0,229,255,0.22)";
+    ctx.strokeStyle = "rgba(0,0,0,0.25)";
     ctx.lineWidth = 2;
     ctx.beginPath();
     ctx.roundRect(-18, -34, 36, 68, 12);
@@ -1284,64 +1170,37 @@ Run clean : ${clean}
     ctx.stroke();
 
     // windows
-    ctx.fillStyle = "rgba(10,20,40,0.75)";
-    ctx.beginPath();
-    ctx.roundRect(-13, -22, 26, 14, 7);
-    ctx.fill();
-    ctx.beginPath();
-    ctx.roundRect(-13, 8, 26, 14, 7);
-    ctx.fill();
+    ctx.fillStyle = "rgba(10,20,40,0.70)";
+    ctx.beginPath(); ctx.roundRect(-13, -22, 26, 14, 7); ctx.fill();
+    ctx.beginPath(); ctx.roundRect(-13, 8, 26, 14, 7); ctx.fill();
 
-    // stripe
-    ctx.strokeStyle = "rgba(255,61,240,0.45)";
-    ctx.lineWidth = 3;
-    ctx.beginPath();
-    ctx.moveTo(-12, -2);
-    ctx.lineTo(12, -2);
-    ctx.stroke();
+    // small "AUTO-ÉCOLE" stripe
+    ctx.fillStyle = "rgba(246,195,67,0.9)";
+    ctx.fillRect(-12, -2, 24, 4);
 
-    // brake / reverse lights
+    // brake/reverse
     const braking = (CAR.inputs.brake || keys.down) && Math.abs(CAR.v) > 5;
     if (braking) {
-      ctx.shadowColor = "rgba(255,59,92,0.7)";
+      ctx.shadowColor = "rgba(255,80,80,0.8)";
       ctx.shadowBlur = 18;
-      ctx.fillStyle = "rgba(255,59,92,0.8)";
+      ctx.fillStyle = "rgba(255,80,80,0.8)";
       ctx.fillRect(-13, 26, 8, 4);
       ctx.fillRect(5, 26, 8, 4);
       ctx.shadowBlur = 0;
     }
     if (CAR.gear === -1) {
-      ctx.shadowColor = "rgba(255,255,255,0.6)";
-      ctx.shadowBlur = 10;
-      ctx.fillStyle = "rgba(255,255,255,0.8)";
+      ctx.fillStyle = "rgba(255,255,255,0.85)";
       ctx.fillRect(-2, 26, 4, 4);
-      ctx.shadowBlur = 0;
     }
 
     ctx.restore();
-  }
-
-  function drawParticles() {
-    for (const p of particles) {
-      const t = p.t / p.life;
-      const a = 1 - t;
-      ctx.save();
-      ctx.globalAlpha = a;
-      ctx.fillStyle = p.c;
-      ctx.shadowColor = p.c;
-      ctx.shadowBlur = 12;
-      ctx.beginPath();
-      ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2);
-      ctx.fill();
-      ctx.restore();
-    }
   }
 
   // =========================
   // Main loop
   // =========================
   let lastT = 0;
-  function frame(t) {
+  function frame(t){
     requestAnimationFrame(frame);
     if (!lastT) { lastT = t; return; }
     let dt = (t - lastT) / 1000;
@@ -1351,18 +1210,29 @@ Run clean : ${clean}
     update(dt);
     draw();
   }
-  requestAnimationFrame(frame);
 
   // =========================
-  // Wire start state defaults
+  // Init / defaults
   // =========================
+  function setModeButtons() {
+    btnModeContest.classList.toggle("active", mode === "CONTEST");
+    btnModePractice.classList.toggle("active", mode === "PRACTICE");
+  }
   setModeButtons();
   updateGearUI();
   hud.classList.add("hidden");
   screenEnd.classList.add("hidden");
   screenStart.classList.remove("hidden");
 
-  // Gear and quit
-  btnQuit.addEventListener("click", () => sfx("click"));
+  // menu click sfx
+  btnModeContest.addEventListener("click", ()=> sfx("click"));
+  btnModePractice.addEventListener("click", ()=> sfx("click"));
+  btnStart.addEventListener("click", ()=> sfx("click"));
+  btnQuit.addEventListener("click", ()=> sfx("click"));
+  btnReplay.addEventListener("click", ()=> sfx("click"));
+  btnMenu.addEventListener("click", ()=> sfx("click"));
 
+  // Kickoff
+  resize();
+  requestAnimationFrame(frame);
 })();
