@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1.0,maximum-scale=1.0,user-scalable=no" />
-  <title>Le Défi Boulari — V3 Néon</title>
+  <title>Le Défi Boulari — V3 Route NC</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <link rel="stylesheet" href="./styles.css">
 </head>
@@ -17,9 +17,6 @@
 
   <div id="app">
     <canvas id="gameCanvas"></canvas>
-
-    <!-- Neon glow overlay -->
-    <div id="backGlow"></div>
 
     <!-- Global controls -->
     <button id="btnMute" class="btn-circle" title="Son">🔊</button>
@@ -37,7 +34,7 @@
         <div class="hud-right">
           <div class="pill time">⏱️ <span id="hudTime">00.00</span></div>
           <div class="pill pen">⚠️ <span id="hudPen">0</span>s</div>
-          <div class="pill combo">✨ x<span id="hudCombo">1.0</span></div>
+          <div class="pill clean">✅ <span id="hudClean">Clean</span></div>
         </div>
       </div>
 
@@ -80,25 +77,25 @@
 
     <!-- START -->
     <div id="screenStart" class="screen modal">
-      <div class="card neon-card">
+      <div class="card road-card">
         <div class="brand">
-          <div class="logoMark">⚡</div>
+          <div class="logoMark">🚗</div>
           <div>
             <div class="title">LE DÉFI BOULARI</div>
-            <div class="subtitle">V3 • ÉDITION NÉON</div>
+            <div class="subtitle">V3 • ROUTE NC</div>
           </div>
         </div>
 
         <div class="hero">
           <div class="hero-left">
             <div class="big">Jeu concours</div>
-            <div class="small">Court • fun • rejouable</div>
+            <div class="small">3 épreuves • rapide • rejouable</div>
             <div class="reward">🏆 À gagner : <span class="rewardTag">BON D’ACHAT</span></div>
           </div>
           <div class="hero-right">
-            <div class="chip">3 épreuves</div>
-            <div class="chip">Missions aléatoires</div>
-            <div class="chip">Bonus “run clean”</div>
+            <div class="chip">Feu tricolore</div>
+            <div class="chip">Slalom</div>
+            <div class="chip">Créneau</div>
           </div>
         </div>
 
@@ -126,19 +123,23 @@
             <input id="chkVibrate" type="checkbox" checked />
             <span>Vibrations (mobile)</span>
           </label>
+          <label class="opt">
+            <input id="chkWeather" type="checkbox" checked />
+            <span>Décor “NC” (herbe + trottoir + marquages)</span>
+          </label>
         </div>
 
         <button id="btnStart" class="btn-main">JOUER 🚗💨</button>
 
         <div class="footnote">
-          Astuce : active le plein écran ⛶ • Pas besoin d’Internet après chargement.
+          Astuce : active le plein écran ⛶ • Chrono démarre au vert (ou si départ trop tôt).
         </div>
       </div>
     </div>
 
     <!-- END -->
     <div id="screenEnd" class="screen modal hidden">
-      <div class="card neon-card">
+      <div class="card road-card">
         <div class="resultTop">
           <div>
             <div class="resultTitle">RÉSULTAT</div>
@@ -173,7 +174,7 @@
 
         <div class="grid grid-cols-1 md:grid-cols-2 gap-2 mt-3">
           <button id="btnReplay" class="btn-main green">REJOUER 🔁</button>
-          <button id="btnCopy" class="btn-main purple">COPIER RÉSULTAT 📋</button>
+          <button id="btnCopy" class="btn-main gray">COPIER RÉSULTAT 📋</button>
           <button id="btnMenu" class="btn-main slate md:col-span-2">MENU</button>
         </div>
       </div>
