@@ -40,6 +40,8 @@ body{
   position:relative;
   width:100vw;
   height:100vh;
+  height:100svh; /* better on mobile (address bar / keyboard) */
+  height:100dvh; /* modern browsers */
   overflow:hidden;
 }
 #gameCanvas{ width:100%; height:100%; display:block; }
@@ -330,6 +332,8 @@ body{
   align-items:center;
   padding: 16px;
   pointer-events:auto;
+  overflow:auto; /* allow scroll if content taller (mobile keyboard) */
+  -webkit-overflow-scrolling: touch;
 }
 .modal{
   background: radial-gradient(700px 420px at 30% 30%, rgba(59,214,107,0.10), transparent 62%),
@@ -344,6 +348,11 @@ body{
   background: rgba(0,0,0,0.45);
   box-shadow: var(--shadow);
   padding: 18px;
+  max-height: calc(100vh - 32px);
+  max-height: calc(100svh - 32px);
+  max-height: calc(100dvh - 32px);
+  overflow:auto; /* scroll inside the card if needed */
+  -webkit-overflow-scrolling: touch;
 }
 .road-card{
   position:relative;
@@ -414,6 +423,7 @@ body{
   margin-bottom: 6px;
 }
 .input{
+  scroll-margin-bottom: 120px;
   width:100%;
   padding: 12px 12px;
   border-radius: 16px;
@@ -500,6 +510,7 @@ body{
 }
 
 @media (max-height: 540px){
+  .screen{ align-items:flex-start; padding-top: 10px; padding-bottom: 10px; }
   .controls{ height: 150px; bottom: 10px; }
   .wheel-zone{ width: 132px; height: 132px; }
   .gear{ width: 58px; height: 58px; font-size: 1.2rem; }
