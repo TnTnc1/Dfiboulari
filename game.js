@@ -314,7 +314,7 @@
   let levelIndex = 0;
   let cones = [];
   let walls = [];
-  let parked = [];   // parked cars blocks (visual)
+  let parked = [];
   let target = null;
   let meta = {};
   let winHold = 0;
@@ -378,7 +378,6 @@
 
         const roadY = CY(62);
 
-        // road borders (walls)
         walls.push({ x: CX(50), y: roadY - 102, w: CX(100), h: 18, type:"curb" });
         walls.push({ x: CX(50), y: roadY + 102, w: CX(100), h: 18, type:"curb" });
 
@@ -390,20 +389,18 @@
         CAR.gear = 1;
         updateGearUI();
 
-        // light
         meta.light = "RED";
         meta.greenAt = performance.now() + rand(1200, 2800);
         meta.falseDone = false;
         meta.lightX = CX(46);
         meta.lightY = roadY - 135;
 
-        // target stop box
         target = { x: CX(72), y: roadY + 38, w: 110, h: 80, a: 0 };
         meta.stopLineX = CX(64);
 
         setMsg("Attends le vert. Reste prêt.");
       },
-      update(dt) {
+      update() {
         if (meta.light === "RED" && performance.now() >= meta.greenAt) {
           meta.light = "GREEN";
           sfx("green");
@@ -425,21 +422,19 @@
       }
     },
 
-    // 2) Slalom (V3.1 : PORTES OBLIGATOIRES)
+    // 2) Slalom (V3.2 : plots alternés = slalom obligatoire mais jouable)
     {
       title: "2) SLALOM",
-      intro: "Passe ENTRE les cônes (portes). Si tu rates une porte = pénalité.",
+      intro: "Slalom obligatoire : plots alternés. Tout droit = tu touches !",
       setup() {
         resetWorld();
 
-        // ✅ On resserre la zone de route pour éviter de “contourner” le slalom
-        const roadTop = CY(28);
-        const roadBot = CY(76);
-
+        // Couloir un peu resserré (anti-contournement), mais pas étouffant
+        const roadTop = CY(26);
+        const roadBot = CY(78);
         walls.push({ x: CX(50), y: roadTop - 8, w: CX(100), h: 16, type:"curb" });
         walls.push({ x: CX(50), y: roadBot + 8, w: CX(100), h: 16, type:"curb" });
 
-        // start
         CAR.x = CX(12);
         CAR.y = CY(52);
         CAR.a = 0;
@@ -448,72 +443,48 @@
         CAR.gear = 1;
         updateGearUI();
 
-        // ✅ Slalom en "portes" : 2 cônes = une porte.
-        // Si tu vas tout droit, tu ne seras PAS dans le bon couloir -> porte ratée.
-        meta.gates = [];
-        meta.gateIndex = 0;
-
+        // ✅ Le vrai truc : une ligne de plots "blocage" alternés
+        // - Assez espacés pour être fun au clavier
+        // - Mais impossible de passer en ligne droite sans toucher
+        const n = 7; // moins qu'avant
+        const xStart = CX(28);
+        const xEnd = CX(74);
         const centerY = CY(52);
-        const gateGap = 92;            // espace entre les 2 cônes de la porte (plus petit = plus dur)
-        const gateOffset = 54;         // décalage haut/bas alterné
-        const nGates = 8;              // nombre de portes
-        const xStart = CX(26);
-        const xEnd = CX(78);
 
-        for (let i = 0; i < nGates; i++) {
-          const t = i / (nGates - 1);
-          const x = lerp(xStart, xEnd, t);
+        // difficulté réglable
+        const offset = easyMode ? 56 : 68;     // amplitude haut/bas (plus grand = plus de slalom)
+        const spacingJitter = easyMode ? 6 : 10;
+        const r = easyMode ? 15 : 16;          // plots un poil plus gros en normal
 
-          // alternance haut/bas + un peu d’aléatoire
+        // Pour éviter une trajectoire “au millimètre”, on met un léger bruit
+        for (let i = 0; i < n; i++) {
+          const t = i / (n - 1);
+          const x = lerp(xStart, xEnd, t) + rand(-spacingJitter, spacingJitter);
+
           const dir = (i % 2 === 0) ? -1 : 1;
-          const jitter = rand(-10, 10);
-          const gateCenter = centerY + dir * gateOffset + jitter;
+          const y = centerY + dir * offset + rand(-10, 10);
 
-          const topConeY = gateCenter - gateGap / 2;
-          const botConeY = gateCenter + gateGap / 2;
-
-          // cônes (un peu plus gros)
-          cones.push({ x, y: topConeY, r: 16, hit: false });
-          cones.push({ x, y: botConeY, r: 16, hit: false });
-
-          meta.gates.push({
-            x,
-            y: gateCenter,
-            gap: gateGap,
-            passed: false,
-          });
+          cones.push({ x, y, r, hit: false });
         }
 
-        // ✅ Zone d’arrivée (après la dernière porte)
-        target = { x: CX(88), y: CY(52), w: 140, h: 110, a: 0 };
+        // Deux plots bonus proches du centre (anti “corridor tout droit”)
+        // mais pas trop proches pour rester jouable
+        if (!easyMode) {
+          cones.push({ x: CX(46), y: centerY + rand(-14, 14), r: 14, hit: false });
+          cones.push({ x: CX(58), y: centerY + rand(-14, 14), r: 14, hit: false });
+        }
 
-        setMsg("Enchaîne les portes. Raté = pénalité.");
-        showToast("SLALOM", "Portes obligatoires", 800);
+        target = { x: CX(88), y: CY(52), w: 150, h: 120, a: 0 };
+
+        meta.slalomHintShown = false;
+        setMsg("Enchaîne le slalom. Petits coups de volant.");
+        showToast("SLALOM", "Obligatoire, mais jouable", 850);
       },
-      update(dt) {
-        // ✅ Validation / pénalité si une porte est ratée
-        if (!meta.gates || meta.gateIndex == null) return;
-
-        const i = meta.gateIndex;
-        if (i >= meta.gates.length) return;
-
-        const gate = meta.gates[i];
-
-        // on vérifie au moment où la voiture dépasse la porte en X
-        if (CAR.x > gate.x && !gate.passed) {
-          const inside = Math.abs(CAR.y - gate.y) <= (gate.gap / 2) - 10; // marge
-          gate.passed = true;
-
-          if (inside) {
-            sfx("ok");
-            vib(10);
-            showToast("OK", `Porte ${i + 1}/${meta.gates.length}`, 500);
-          } else {
-            addPenalty(3, `Porte ratée (${i + 1}/${meta.gates.length})`, "wall");
-            setMsg("Oups… porte ratée. Recalage et continue !");
-          }
-
-          meta.gateIndex++;
+      update() {
+        // petit rappel si le joueur fonce plein gaz trop tôt
+        if (!meta.slalomHintShown && elapsed() > 2 && Math.abs(CAR.v) > 220) {
+          meta.slalomHintShown = true;
+          setMsg("Conseil : lève le gaz entre deux plots 😉");
         }
       }
     },
@@ -530,10 +501,8 @@
         walls.push({ x: CX(50), y: roadY - 98, w: CX(100), h: 16, type:"curb" });
         walls.push({ x: CX(50), y: roadY + 98, w: CX(100), h: 16, type:"curb" });
 
-        // sidewalk right
         walls.push({ x: CX(82), y: roadY - 4, w: 14, h: 260, type:"curb" });
 
-        // parked cars blocks (visual + collision)
         const px = CX(56);
         const py = roadY - 40;
         parked.push({ x: px - 120, y: py, w: 40, h: 78, color:"#c23b3b" });
@@ -556,7 +525,7 @@
 
         setMsg("Passe en R et rentre dans la zone.");
       },
-      update(dt) {
+      update() {
         if (CAR.gear === -1 && Math.abs(CAR.v) > 12) meta.reversed = true;
       }
     }
@@ -775,7 +744,6 @@
   }
 
   function handleCollisions(){
-    // bounds
     if (CAR.x < -10 || CAR.x > W()+10 || CAR.y < -10 || CAR.y > H()+10) {
       addPenalty(4, "Sortie de zone", "wall");
       CAR.x = clamp(CAR.x, 20, W()-20);
@@ -804,7 +772,7 @@
       for (const p of corners) {
         if (Math.hypot(p.x - c.x, p.y - c.y) < c.r + 8) {
           c.hit = true;
-          addPenalty(2, "Cône touché", "cone");
+          addPenalty(2, "Plot touché", "cone");
           return;
         }
       }
@@ -817,7 +785,6 @@
     const near = Math.hypot(CAR.x - target.x, CAR.y - target.y) < Math.max(target.w, target.h) * 0.85;
     const stopped = Math.abs(CAR.v) < 14;
 
-    // rule for reverse on level 3
     if (levelIndex === 2 && meta.mustReverse && !meta.reversed) {
       if (near) setMsg("Marche arrière obligatoire (R).");
       winHold = 0;
@@ -927,30 +894,25 @@ Run clean : ${clean}
   function update(dt){
     if (state !== "PLAY") return;
 
-    // keyboard steering if not touching wheel
     if (!isSteering) {
       if (keys.left) CAR.inputs.steerTarget = -1;
       else if (keys.right) CAR.inputs.steerTarget = 1;
       else CAR.inputs.steerTarget = 0;
     }
 
-    // wheel UI
     wheelVisual.style.transform = `rotate(${CAR.inputs.steerTarget * 120}deg)`;
 
-    // smooth steer
     const steerTarget = CAR.inputs.steerTarget * MAX_STEER;
     CAR.steer = lerp(CAR.steer, steerTarget, clamp(dt * 10.5, 0, 1));
 
     const gas = CAR.inputs.gas || keys.up;
     const brake = CAR.inputs.brake || keys.down;
 
-    // timer starts on any movement (unless level 1 already started at green)
     if (startTimeMs === null) {
       const moving = gas || brake || Math.abs(CAR.v) > 12;
       if (moving) ensureTimerStarted();
     }
 
-    // accel/brake/drag
     if (gas) {
       const acc = (CAR.gear === 1) ? ACC_FWD : ACC_REV;
       CAR.v += acc * dt * CAR.gear;
@@ -971,7 +933,6 @@ Run clean : ${clean}
       CAR.y += Math.sin(CAR.a) * CAR.v * dt;
     }
 
-    // level logic
     const lvl = LEVELS[levelIndex];
     lvl.update && lvl.update(dt);
 
@@ -988,7 +949,6 @@ Run clean : ${clean}
     const w = W(), h = H();
     ctx.clearRect(0,0,w,h);
 
-    // camera shake
     let ox = 0, oy = 0;
     if (shake > 0.2) {
       ox = (Math.random()*2-1) * shake;
@@ -1004,19 +964,12 @@ Run clean : ${clean}
 
     if (levelIndex === 0 && state === "PLAY") drawStopLineAndLight();
 
-    // target
     if (target) drawTarget(target);
 
-    // walls
     for (const w of walls) drawWall(w);
-
-    // parked cars visual
     for (const p of parked) drawParkedCar(p);
-
-    // cones
     for (const c of cones) drawCone(c);
 
-    // car
     drawCar();
 
     ctx.restore();
