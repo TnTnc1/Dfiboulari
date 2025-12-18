@@ -1,865 +1,148 @@
 <!DOCTYPE html>
 <html lang="fr">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Le Défi Boulari - Jeu Concours</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <style>
-        @import url('https://fonts.googleapis.com/css2?family=Roboto+Condensed:wght@700&family=Handlee&family=Courier+Prime:wght@700&display=swap');
-
-        body { margin: 0; padding: 0; overflow: hidden; background-color: #1a1a1a; font-family: 'Roboto Condensed', sans-serif; touch-action: none; user-select: none; }
-        
-        #game-container { 
-            position: relative; 
-            width: 100vw; 
-            height: 100vh; 
-            overflow: hidden; 
-            background: url('https://i.postimg.cc/VL0sLRv5/IMG-3343.jpg') no-repeat center center;
-            background-size: cover;
-        }
-        
-        .game-overlay {
-            position: absolute;
-            top: 0; left: 0; width: 100%; height: 100%;
-            background: rgba(50, 50, 50, 0.85);
-            z-index: 0;
-        }
-
-        canvas { display: block; width: 100%; height: 100%; position: relative; z-index: 1; }
-
-        /* UI Layers */
-        .ui-layer { position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; display: flex; flex-direction: column; z-index: 20; }
-        .interactive { pointer-events: auto; }
-        .hidden { display: none !important; }
-
-        /* Intro Video Layer */
-        #introScreen {
-            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
-            background: black; z-index: 100;
-            display: flex; justify-content: center; align-items: center;
-        }
-        #introVideo { width: 100%; height: 100%; object-fit: cover; }
-        
-        .intro-controls {
-            position: absolute; bottom: 30px; right: 30px; z-index: 101; display: flex; gap: 10px; pointer-events: auto;
-        }
-        
-        .btn-sound-intro {
-            position: absolute; top: 20px; left: 20px; z-index: 101;
-            background: rgba(0,0,0,0.6); border: 1px solid white; color: white;
-            padding: 8px 15px; border-radius: 20px; cursor: pointer; pointer-events: auto;
-            font-size: 0.8rem; display: flex; align-items: center; gap: 5px;
-        }
-
-        .btn-skip {
-            background: rgba(0, 0, 0, 0.5); border: 1px solid white; color: white;
-            padding: 10px 25px; border-radius: 30px; cursor: pointer;
-            font-family: 'Roboto Condensed', sans-serif; text-transform: uppercase;
-            backdrop-filter: blur(5px); transition: background 0.2s;
-            pointer-events: auto;
-        }
-        .btn-skip:hover { background: rgba(255, 255, 255, 0.2); }
-
-        /* Mute Button Global */
-        .btn-mute {
-            position: absolute; top: 20px; right: 20px;
-            width: 50px; height: 50px;
-            background: white; border-radius: 50%;
-            display: flex; justify-content: center; align-items: center;
-            font-size: 24px; cursor: pointer; z-index: 200;
-            box-shadow: 0 4px 6px rgba(0,0,0,0.3);
-            pointer-events: auto; border: 2px solid #333;
-        }
-
-        /* Fullscreen Button */
-        .btn-fullscreen {
-            position: absolute; top: 20px; left: 20px;
-            width: 50px; height: 50px;
-            background: white; border-radius: 50%;
-            display: flex; justify-content: center; align-items: center;
-            font-size: 24px; cursor: pointer; z-index: 200;
-            box-shadow: 0 4px 6px rgba(0,0,0,0.3);
-            pointer-events: auto; border: 2px solid #333; color: #333;
-        }
-
-        /* Rotate Screen Overlay */
-        #rotateOverlay {
-            display: none;
-            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-            background: #1a1a1a; color: white; z-index: 9999;
-            flex-direction: column; justify-content: center; align-items: center; text-align: center;
-            padding: 20px;
-        }
-        
-        @media screen and (orientation: portrait) and (max-width: 1024px) {
-            #rotateOverlay { display: flex; }
-            #gameUI, #startScreen, #endScreen, #introScreen { display: none !important; }
-        }
-
-        /* HUD */
-        .hud-top { position: absolute; top: 10px; left: 10px; right: 70px; display: flex; justify-content: space-between; align-items: flex-start; }
-        .info-box { background: rgba(0,0,0,0.8); color: #fff; padding: 8px 15px; border-radius: 8px; border: 2px solid #fff; font-size: 1.2rem; box-shadow: 0 4px 6px rgba(0,0,0,0.3); }
-        .btn-quit { background: #e74c3c; color: white; padding: 8px 15px; border-radius: 8px; border: 2px solid #fff; font-size: 1rem; cursor: pointer; pointer-events: auto; margin-right: 10px; box-shadow: 0 4px 0 #c0392b; transition: transform 0.1s; }
-        .btn-quit:active { transform: translateY(2px); box-shadow: none; }
-        .penalty-flash { color: #ff4757; animation: flash 0.5s; }
-        @keyframes flash { 0% { transform: scale(1); } 50% { transform: scale(1.5); } 100% { transform: scale(1); } }
-
-        /* Controls */
-        .controls-area { position: absolute; bottom: 20px; width: 100%; height: 180px; pointer-events: none; display: flex; justify-content: space-between; padding: 0 20px; }
-        
-        /* NEW STEERING WHEEL STYLE */
-        .wheel-zone { 
-            width: 160px; height: 160px; 
-            background: rgba(30, 30, 30, 0.6); 
-            border-radius: 50%; 
-            border: 6px solid #555; 
-            position: relative; 
-            pointer-events: auto; 
-            align-self: flex-end; 
-            backdrop-filter: blur(2px);
-            box-shadow: 0 4px 10px rgba(0,0,0,0.5);
-        }
-        
-        .wheel-visual {
-            width: 100%; height: 100%;
-            border-radius: 50%;
-            position: relative;
-            transition: transform 0.1s ease-out; /* Smooth return */
-            /* Spokes texture */
-            background: 
-                radial-gradient(circle at center, transparent 60%, #333 61%, #333 100%),
-                linear-gradient(0deg, transparent 45%, #333 45%, #333 55%, transparent 55%),
-                linear-gradient(90deg, transparent 45%, #333 45%, #333 55%, transparent 55%);
-        }
-        
-        /* Center logo or cap */
-        .wheel-visual::after {
-            content: ''; position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
-            width: 40px; height: 40px; background: #3498db; border-radius: 50%;
-            border: 2px solid #fff; box-shadow: 0 2px 4px rgba(0,0,0,0.4);
-        }
-
-        /* Knob indicator (the blue dot) */
-        .wheel-knob { 
-            width: 30px; height: 30px; 
-            background: #3498db; 
-            border-radius: 50%; 
-            position: absolute; 
-            top: 10px; left: 50%; 
-            transform: translateX(-50%); 
-            box-shadow: 0 2px 5px rgba(0,0,0,0.5); 
-            border: 2px solid white;
-        }
-        
-        .pedals-zone { display: flex; flex-direction: column; align-items: flex-end; justify-content: flex-end; gap: 10px; pointer-events: auto; }
-        .gear-stick { width: 60px; height: 60px; background: #2d3436; border-radius: 10px; color: white; display: flex; justify-content: center; align-items: center; font-size: 1.5rem; border: 2px solid #636e72; cursor: pointer; box-shadow: 0 4px 0 #000; }
-        .gear-d { background: #00b894; } .gear-r { background: #e17055; }
-        .pedal-row { display: flex; gap: 15px; }
-        .pedal { width: 70px; height: 100px; border-radius: 10px; border: 2px solid rgba(255,255,255,0.5); display: flex; justify-content: center; align-items: center; color: white; font-size: 1.2rem; cursor: pointer; transition: transform 0.1s; box-shadow: 0 5px 0 rgba(0,0,0,0.5); }
-        .pedal:active, .pedal.active-key { transform: translateY(5px); box-shadow: none; }
-        .brake { background: linear-gradient(to bottom, #ff7675, #d63031); } .gas { background: linear-gradient(to bottom, #55efc4, #00b894); }
-
-        /* Mobile Optimizations for Controls */
-        @media (max-height: 500px) {
-            .controls-area { height: 140px; bottom: 10px; }
-            .wheel-zone { width: 120px; height: 120px; }
-            .pedal { width: 60px; height: 80px; font-size: 1rem; }
-            .gear-stick { width: 50px; height: 50px; font-size: 1.2rem; }
-        }
-
-        /* Menus */
-        .modal-bg { background: rgba(0,0,0,0.85); display: flex; justify-content: center; align-items: center; backdrop-filter: blur(5px); }
-        .menu-card { background: #f5f6fa; border-radius: 15px; padding: 1.5rem; text-align: center; max-width: 500px; width: 95%; max-height: 95vh; overflow-y: auto; box-shadow: 0 20px 50px rgba(0,0,0,0.7); border-top: 10px solid #3498db; position: relative; }
-        .input-field { width: 100%; padding: 12px; margin: 15px 0; border: 2px solid #dcdde1; border-radius: 8px; font-size: 1.2rem; text-align: center; font-family: 'Handlee', cursive; background: #fff; }
-        .btn-main { background: linear-gradient(to bottom, #3498db, #2980b9); color: white; font-size: 1.3rem; padding: 12px 30px; border-radius: 50px; border: none; width: 100%; cursor: pointer; text-transform: uppercase; box-shadow: 0 4px 0 #1c5980; text-shadow: 1px 1px 0 rgba(0,0,0,0.3); transition: transform 0.1s; }
-        .btn-main:active { transform: translateY(4px); box-shadow: none; }
-
-        /* Compact Menu for Small Screens */
-        @media (max-height: 500px) {
-            .menu-card { padding: 0.5rem; max-width: 450px; display: flex; flex-direction: column; justify-content: center; }
-            .menu-logo { width: 80px !important; margin-bottom: 0.25rem !important; }
-            .menu-title { font-size: 1.5rem !important; margin-bottom: 0.25rem !important; }
-            .menu-desc { display: none; } /* Hide description on very short screens */
-            .menu-rules { font-size: 0.75rem !important; padding: 0.25rem !important; margin-bottom: 0.5rem !important; }
-            .input-field { padding: 8px !important; margin: 5px 0 !important; font-size: 1rem !important; }
-            .btn-main { padding: 8px 20px !important; font-size: 1rem !important; }
-        }
-
-        /* Certificate */
-        .certificate { background: #fffdf0; border: 8px double #2c3e50; padding: 20px; position: relative; font-family: 'Courier Prime', monospace; color: #333; box-shadow: 0 0 20px rgba(0,0,0,0.2); }
-        .stamp { position: absolute; bottom: 20px; right: 20px; width: 80px; height: 80px; border: 4px solid #c0392b; border-radius: 50%; color: #c0392b; display: flex; justify-content: center; align-items: center; font-weight: bold; transform: rotate(-20deg); opacity: 0.8; font-size: 14px; text-align: center; mask-image: url('data:image/svg+xml;utf8,<svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg"><filter id="noise"><feTurbulence type="fractalNoise" baseFrequency="0.8" numOctaves="3" stitchTiles="stitch"/></filter><rect width="100%" height="100%" filter="url(%23noise)" opacity="0.5"/></svg>'); }
-        .feedback-popup { position: absolute; top: 40%; left: 50%; transform: translate(-50%, -50%); background: rgba(0,0,0,0.9); color: white; padding: 20px; border-radius: 15px; text-align: center; animation: popIn 0.3s; border: 2px solid #fff; box-shadow: 0 10px 30px rgba(0,0,0,0.5); }
-        @keyframes popIn { from { transform: translate(-50%, -50%) scale(0.8); opacity: 0; } to { transform: translate(-50%, -50%) scale(1); opacity: 1; } }
-
-    </style>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1.0,maximum-scale=1.0,user-scalable=no" />
+  <title>Le Défi Boulari V2</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="stylesheet" href="./styles.css">
 </head>
 <body>
-
-<div id="rotateOverlay">
+  <!-- Portrait overlay -->
+  <div id="rotateOverlay">
     <div class="text-6xl mb-4">📱↔️</div>
     <h1 class="text-2xl font-bold mb-2">TOURNEZ VOTRE APPAREIL</h1>
     <p>Le Défi Boulari se joue en mode Paysage pour une meilleure visibilité !</p>
-</div>
+  </div>
 
-<div id="game-container">
-    <!-- GLOBAL CONTROLS -->
-    <button id="globalMuteBtn" class="btn-mute">🔊</button>
+  <div id="game-container">
+    <div id="gameOverlay" class="game-overlay hidden"></div>
+
+    <!-- Global controls -->
+    <button id="globalMuteBtn" class="btn-mute" title="Son">🔊</button>
     <button id="fsToggleBtn" class="btn-fullscreen" title="Plein Écran">⛶</button>
 
-    <!-- INTRO VIDEO -->
-    <div id="introScreen">
-        <button id="unmuteIntroBtn" class="btn-sound-intro">🔊 Activer le son</button>
-        <video id="introVideo" playsinline autoplay muted>
-            <source src="https://res.cloudinary.com/drjkiqihn/video/upload/v1764123464/Cr%C3%A9ation_vid%C3%A9o_intro_Le_D%C3%A9fi_Boulari__c4zxhr.mp4" type="video/mp4">
-        </video>
-        <div class="intro-controls">
-            <button id="skipBtn" class="btn-skip">PASSER L'INTRO ⏩</button>
-        </div>
-    </div>
-
-    <!-- Overlay pour assombrir le fond pendant le jeu -->
-    <div id="gameOverlay" class="game-overlay hidden"></div>
     <canvas id="gameCanvas"></canvas>
 
-    <!-- In-Game HUD -->
+    <!-- HUD -->
     <div id="gameUI" class="ui-layer hidden">
-        <div class="hud-top">
-            <div class="flex items-center">
-                <button id="quitBtn" class="btn-quit">✕ Menu</button>
-                <div class="info-box" id="levelName">Niveau 1</div>
-            </div>
-            <div class="info-box" style="color: #f1c40f;">⏱️ <span id="timerVal">00.00</span></div>
+      <div class="hud-top">
+        <div class="flex items-center gap-2">
+          <button id="quitBtn" class="btn-quit">✕ Menu</button>
+          <div class="info-box" id="levelName">Épreuve</div>
         </div>
-        
-        <!-- Message Tonton Marcel -->
-        <div style="position: absolute; top: 60px; left: 10px; max-width: 80%;">
-            <div class="bg-white text-black p-3 rounded-xl rounded-tl-none shadow-lg font-bold font-['Handlee'] text-sm border-2 border-gray-200 flex items-center" id="monitorBox">
-                <span class="text-2xl mr-2">👮‍♂️</span> <span id="monitorMsg">Allez, contact !</span>
-            </div>
+        <div class="flex items-center gap-2">
+          <div class="info-box" style="color:#f1c40f;">⏱️ <span id="timerVal">00.00</span></div>
+          <div class="info-box text-red-300">⚠️ <span id="penaltyVal">0</span>s</div>
+        </div>
+      </div>
+
+      <!-- Coach bubble -->
+      <div class="coach-wrap">
+        <div class="coach-bubble" id="monitorBox">
+          <span class="text-2xl mr-2">👮‍♂️</span>
+          <span id="monitorMsg">Bienvenue au Défi Boulari !</span>
+        </div>
+      </div>
+
+      <!-- Small toast -->
+      <div id="toast" class="toast hidden">
+        <div class="toast-title" id="toastTitle">PARFAIT !</div>
+        <div class="toast-text" id="toastText">+0s</div>
+      </div>
+
+      <!-- Controls -->
+      <div class="controls-area">
+        <div class="wheel-zone" id="wheelZone">
+          <div id="wheelVisual" class="wheel-visual">
+            <div class="wheel-knob" id="wheelKnob"></div>
+          </div>
+          <div class="wheel-label">VOLANT</div>
         </div>
 
-        <div id="feedbackUI" class="feedback-popup hidden">
-            <h2 class="text-3xl font-bold mb-2" id="fbTitle">PARFAIT !</h2>
-            <p class="text-lg" id="fbText">Pénalité: 0s</p>
+        <div class="pedals-zone">
+          <div class="gear-stick gear-d" id="gearStick">D</div>
+          <div class="pedal-row">
+            <div class="pedal brake" id="btnBrake">FREIN</div>
+            <div class="pedal gas" id="btnGas">GAZ</div>
+          </div>
         </div>
+      </div>
 
-        <div class="controls-area">
-            <div class="wheel-zone" id="wheelZone">
-                <div id="wheelVisual" class="wheel-visual">
-                    <div class="wheel-knob" id="wheelKnob"></div>
-                </div>
-            </div>
-            
-            <div class="pedals-zone">
-                <div class="gear-stick gear-d" id="gearStick">D</div>
-                <div class="pedal-row">
-                    <div class="pedal brake" id="btnBrake">FREIN</div>
-                    <div class="pedal gas" id="btnGas">GAZ</div>
-                </div>
-            </div>
-        </div>
-        <div class="absolute bottom-2 w-full text-center text-white/50 text-xs md:block hidden">Clavier: Flèches + Espace</div>
+      <div class="hint">
+        Clavier : ZQSD / Flèches + <b>Espace</b> (D/R)
+      </div>
     </div>
 
-    <!-- Start Screen -->
-    <div id="startScreen" class="ui-layer interactive modal-bg hidden">
-        <div class="menu-card">
-            <!-- IMAGE D'ACCUEIL -->
-            <div class="w-full mb-2 overflow-hidden rounded-lg border border-gray-200 shadow-sm menu-logo-container">
-                <img src="https://i.postimg.cc/VL0sLRv5/IMG-3343.jpg" alt="Le Défi Boulari" class="menu-logo w-40 mx-auto h-auto object-contain block">
-            </div>
-            
-            <h1 class="menu-title text-3xl font-bold text-gray-800 mb-1" style="color: #2980b9;">LE DÉFI BOULARI</h1>
-            
-            <div class="menu-desc text-gray-500 font-bold mb-2 italic">Prouve que tu sais conduire !</div>
-            
-            <div class="menu-rules bg-gray-50 p-3 rounded-lg mb-2 text-left text-sm border border-gray-200 shadow-inner">
-                <p class="font-bold text-gray-700 mb-1">🏆 LE CONCOURS :</p>
-                <p class="text-gray-600 text-xs">Le meilleur chrono gagne un bon d'achat !</p>
-            </div>
-
-            <input type="text" id="playerNameInput" class="input-field" placeholder="Ton Prénom / Pseudo" maxlength="15">
-            <button class="btn-main" id="startBtn">PASSER L'EXAMEN</button>
+    <!-- Start -->
+    <div id="startScreen" class="ui-layer interactive modal-bg">
+      <div class="menu-card">
+        <div class="w-full mb-3 overflow-hidden rounded-xl border border-gray-200 shadow-sm">
+          <img src="https://i.postimg.cc/VL0sLRv5/IMG-3343.jpg" alt="Le Défi Boulari" class="menu-logo w-48 mx-auto h-auto object-contain block">
         </div>
+
+        <h1 class="menu-title text-3xl md:text-4xl font-black mb-1">LE DÉFI BOULARI <span class="text-sm font-bold align-top">V2</span></h1>
+        <div class="menu-desc">Un mini-jeu pour s’amuser… et devenir meilleur 🔥</div>
+
+        <div class="menu-rules">
+          <div class="font-bold mb-1">🏆 À gagner :</div>
+          <div class="text-sm text-gray-700 font-semibold">Le meilleur chrono gagne un <span class="badge">BON D’ACHAT</span></div>
+          <div class="text-xs text-gray-500 mt-2">3 épreuves rapides • 1m–2m • Tu peux rejouer direct</div>
+        </div>
+
+        <input type="text" id="playerNameInput" class="input-field" placeholder="Ton Prénom / Pseudo" maxlength="15">
+        <button class="btn-main" id="startBtn">JOUER 🚗💨</button>
+
+        <div class="mt-3 text-xs text-gray-500">
+          Astuce : en mobile, active le plein écran ⛶ pour un meilleur confort.
+        </div>
+      </div>
     </div>
 
-    <!-- Certificate Screen -->
+    <!-- End -->
     <div id="endScreen" class="ui-layer interactive modal-bg hidden">
-        <div class="menu-card" style="max-width: 500px; border-top-color: #27ae60;">
-            <div class="certificate">
-                <h2 class="text-2xl font-bold text-center border-b-2 border-black pb-2 mb-4">PERMIS PROVISOIRE</h2>
-                
-                <div class="text-left space-y-2 text-sm">
-                    <p>PILOTE: <span class="font-bold text-lg" id="certName">---</span></p>
-                    <p>DATE: <span id="certDate">--/--/----</span></p>
-                    <div class="flex justify-between items-end mt-4 bg-gray-100 p-2 rounded">
-                        <div>
-                            <p class="text-xs text-gray-500">PÉNALITÉS</p>
-                            <p class="text-red-600 font-bold text-xl" id="certPenalties">+0s</p>
-                        </div>
-                        <div class="text-right">
-                            <p class="text-xs text-gray-500">TEMPS FINAL</p>
-                            <p class="text-4xl font-bold text-blue-600" id="certTime">00.00</p>
-                        </div>
-                    </div>
-                    <div class="text-right text-xs text-gray-400 mt-2">ID: <span id="certId">#AF34</span></div>
-                </div>
-                <div class="stamp">VALIDÉ<br>AUTO<br>ÉCOLE</div>
+      <div class="menu-card" style="max-width:560px;border-top-color:#27ae60;">
+        <div class="certificate">
+          <h2 class="text-2xl font-black text-center border-b-2 border-black pb-2 mb-4">
+            CERTIFICAT DU DÉFI BOULARI
+          </h2>
+
+          <div class="text-left space-y-2 text-sm">
+            <p>PILOTE : <span class="font-black text-lg" id="certName">---</span></p>
+            <p>DATE : <span id="certDate">--/--/----</span></p>
+
+            <div class="grid grid-cols-2 gap-3 mt-3">
+              <div class="score-box">
+                <div class="score-label">PÉNALITÉS</div>
+                <div class="score-val text-red-600" id="certPenalties">+0s</div>
+              </div>
+              <div class="score-box">
+                <div class="score-label">TEMPS FINAL</div>
+                <div class="score-val text-blue-600" id="certTime">00.00</div>
+              </div>
             </div>
-            
-            <p class="text-gray-500 text-xs mt-4 mb-2 font-bold">📸 Fais une capture d'écran et poste-la en commentaire !</p>
-            <p class="text-blue-400 font-bold text-[10px] mb-4 uppercase tracking-wide">Nouvelle version bientôt disponible ! 🚧</p>
-            <button class="btn-main" id="restartBtn" style="background: #27ae60;">RÉESSAYER</button>
+
+            <div class="mt-3">
+              <div class="score-label">NOTE</div>
+              <div class="grade" id="certGrade">A</div>
+              <div class="text-xs text-gray-500 mt-1" id="certTip">---</div>
+            </div>
+
+            <div class="text-right text-xs text-gray-400 mt-2">ID : <span id="certId">#0000</span></div>
+          </div>
+
+          <div class="stamp">VALIDÉ<br>AUTO<br>ÉCOLE</div>
         </div>
+
+        <p class="text-gray-500 text-xs mt-4 mb-2 font-bold">📸 Fais une capture d’écran et poste-la !</p>
+        <div class="flex gap-2">
+          <button class="btn-main" id="restartBtn" style="background:#27ae60;">REJOUER 🔁</button>
+          <button class="btn-main" id="backMenuBtn" style="background:#34495e;">MENU</button>
+        </div>
+      </div>
     </div>
-</div>
+  </div>
 
-<script>
-    const canvas = document.getElementById('gameCanvas');
-    const ctx = canvas.getContext('2d');
-    const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-
-    // --- Audio Engine ---
-    let isMuted = false;
-    
-    function toggleMute() {
-        isMuted = !isMuted;
-        const btn = document.getElementById('globalMuteBtn');
-        const video = document.getElementById('introVideo');
-        
-        if (isMuted) {
-            btn.innerText = "🔇";
-            video.muted = true;
-            audioCtx.suspend();
-        } else {
-            btn.innerText = "🔊";
-            video.muted = false;
-            audioCtx.resume();
-        }
-    }
-
-    document.getElementById('globalMuteBtn').addEventListener('click', function(e) {
-        toggleMute();
-        this.blur(); // Retire le focus
-    });
-
-    // --- Fullscreen Management ---
-    function toggleFullScreen() {
-        var doc = window.document;
-        var docEl = doc.documentElement;
-
-        var requestFullScreen = docEl.requestFullscreen || docEl.mozRequestFullScreen || docEl.webkitRequestFullScreen || docEl.msRequestFullscreen;
-        var cancelFullScreen = doc.exitFullscreen || doc.mozCancelFullScreen || doc.webkitExitFullscreen || doc.msExitFullscreen;
-
-        if(!doc.fullscreenElement && !doc.mozFullScreenElement && !doc.webkitFullscreenElement && !doc.msFullscreenElement) {
-            if (requestFullScreen) {
-                requestFullScreen.call(docEl);
-            }
-        } else {
-            if (cancelFullScreen) {
-                cancelFullScreen.call(doc);
-            }
-        }
-    }
-    document.getElementById('fsToggleBtn').addEventListener('click', function(e) {
-        toggleFullScreen();
-        this.blur(); 
-    });
-
-    // --- Assets ---
-    let asphaltPattern;
-    const carImg = new Image(); carImg.src = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='30' height='60' viewBox='0 0 30 60'%3E%3Cpath d='M3,12 Q3,6 9,6 L21,6 Q27,6 27,12 L27,51 Q27,57 21,57 L9,57 Q3,57 3,51 Z' fill='%23ffffff' stroke='%23bdc3c7' stroke-width='1'/%3E%3Crect x='5' y='15' width='20' height='9' rx='1' fill='%232c3e50'/%3E%3Crect x='5' y='39' width='20' height='7' rx='1' fill='%232c3e50'/%3E%3Crect x='3' y='6' width='5' height='3' rx='0.5' fill='%23f1c40f'/%3E%3Crect x='22' y='6' width='5' height='3' rx='0.5' fill='%23f1c40f'/%3E%3Crect x='3' y='54' width='5' height='3' rx='0.5' fill='%23e74c3c'/%3E%3Crect x='22' y='54' width='5' height='3' rx='0.5' fill='%23e74c3c'/%3E%3Ctext x='15' y='35' font-family='Arial' font-size='8' fill='%233498db' text-anchor='middle' transform='rotate(-90 15 35)'%3EAUTO-ECOLE%3C/text%3E%3Cpath d='M6,27 L24,27' stroke='rgba(0,0,0,0.1)' stroke-width='1'/%3E%3C/svg%3E";
-    const carObsImg = new Image(); carObsImg.src = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='30' height='60' viewBox='0 0 30 60'%3E%3Cpath d='M3,12 Q3,6 9,6 L21,6 Q27,6 27,12 L27,51 Q27,57 21,57 L9,57 Q3,57 3,51 Z' fill='%23e74c3c' stroke='%23c0392b' stroke-width='1'/%3E%3Crect x='5' y='15' width='20' height='9' rx='1' fill='%232c3e50'/%3E%3Crect x='5' y='39' width='20' height='7' rx='1' fill='%232c3e50'/%3E%3C/svg%3E";
-    const coneImg = new Image(); coneImg.src = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='20' height='20' viewBox='0 0 20 20'%3E%3Ccircle cx='10' cy='10' r='9' fill='%23e67e22' stroke='%23d35400' stroke-width='1'/%3E%3Ccircle cx='10' cy='10' r='5' fill='white'/%3E%3C/svg%3E";
-    const stopImg = new Image(); stopImg.src = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='40' height='40' viewBox='0 0 40 40'%3E%3Crect x='2' y='2' width='36' height='36' fill='%23c0392b' rx='5'/%3E%3Ctext x='50%25' y='50%25' dominant-baseline='middle' text-anchor='middle' fill='white' font-family='Arial' font-weight='bold' font-size='12'%3ESTOP%3C/text%3E%3C/svg%3E";
-
-    // Game Params
-    const CAR_W = 30; const CAR_H = 60; const WHEELBASE = 40; const MAX_STEER = 0.6;
-
-    // State
-    let state = 'INTRO'; 
-    let currentLevel = 0; let playerName = ""; let startTime = 0; let penaltyTime = 0;
-    let winStartTime = 0; let finalTimeStr = ""; let gameLoopId; let lastCrashTime = 0; let hasReversed = false;
-
-    // Entities
-    let car = { x: 0, y: 0, angle: 0, speed: 0, steering: 0, gear: 1, inputs: { gas: false, brake: false, steerTarget: 0 } };
-    let obstacles = []; let targetZone = null;
-
-    const getCX = (pct) => canvas.width * (pct / 100);
-    const getCY = (pct) => canvas.height * (pct / 100);
-
-    const LEVELS = [
-        {
-            title: "1. Le Stop",
-            msg: "Arrête-toi DANS le rectangle vert. Reste sur la voie de droite !",
-            setup: () => {
-                // Horizontal Road from Left to Right
-                const roadH = 160; 
-                const roadY = getCY(50);
-                
-                // Start Left, Bottom Lane (Right side of road)
-                car.x = getCX(10); car.y = roadY + 40; car.angle = 0; // Facing Right
-                
-                // Target moved closer (60%) to avoid pedal overlap
-                targetZone = {x: getCX(60), y: roadY + 40, w: 90, h: 70, angle: 0};
-                
-                // Road Borders FIRST
-                obstacles.push({type: 'wall', x: getCX(50), y: roadY - 90, w: getCX(100), h: 20}); 
-                obstacles.push({type: 'wall', x: getCX(50), y: roadY + 90, w: getCX(100), h: 20});
-                
-                // Stop Sign LAST (Draw on top)
-                obstacles.push({type: 'sign', x: getCX(65), y: roadY + 95, label: 'STOP'});
-            }
-        },
-        {
-            title: "2. Le Bataille",
-            msg: "Gare-toi en marche avant entre les deux voitures. Doucement.",
-            setup: () => {
-                // Vertical Road on Left, Parking on Right
-                const roadX = getCX(25);
-                
-                // Start Bottom Left
-                car.x = roadX - 40; car.y = getCY(85); car.angle = -Math.PI/2; // Facing Up
-                
-                // Parking Spots (Horizontal)
-                const parkX = getCX(70);
-                const parkY = getCY(50);
-                
-                // Target (Horizontal)
-                targetZone = {x: parkX, y: parkY, w: 90, h: 70, angle: 0};
-                
-                // Wall Back
-                obstacles.push({type: 'wall', x: parkX + 55, y: parkY, w: 10, h: 300});
-                
-                // Cars Above and Below - HORIZONTAL (Rotated -PI/2) -> Corrected to be PERPENDICULAR
-                // Obstacle Car Angle 0 = Vertical (facing right visually but sprite is vertical)
-                // We need them horizontal. Car Sprite is Vertical. So rotate -PI/2.
-                obstacles.push({type: 'car', x: parkX, y: parkY - 80, angle: -Math.PI/2, color: '#e74c3c'});
-                obstacles.push({type: 'car', x: parkX, y: parkY + 80, angle: -Math.PI/2, color: '#f1c40f'});
-            }
-        },
-        {
-            title: "3. Le Créneau",
-            msg: "Marche arrière obligatoire ! Ne touche pas le trottoir à droite.",
-            setup: () => {
-                // Horizontal Road
-                const roadY = getCY(60);
-                
-                // Start Far Left
-                car.x = getCX(10); car.y = roadY + 40; car.angle = 0; // Facing Right
-                
-                const targetX = getCX(50);
-                // Target along top curb (Horizontal)
-                targetZone = {x: targetX, y: roadY - 35, w: 94, h: 68, angle: 0};
-                
-                // Curb (Top)
-                obstacles.push({type: 'wall', x: getCX(50), y: roadY - 80, w: getCX(100), h: 20});
-                
-                // Cars (Left and Right) - Horizontal (Rotated -PI/2 to face sideways)
-                obstacles.push({type: 'car', x: targetX - 110, y: roadY - 35, angle: -Math.PI/2, color: '#e74c3c'});
-                obstacles.push({type: 'car', x: targetX + 110, y: roadY - 35, angle: -Math.PI/2, color: '#f1c40f'});
-            }
-        }
-    ];
-
-    function generateAsphalt() {
-        const pCanvas = document.createElement('canvas'); pCanvas.width = 64; pCanvas.height = 64; const pCtx = pCanvas.getContext('2d');
-        pCtx.fillStyle = '#444'; pCtx.fillRect(0,0,64,64);
-        for(let i=0; i<200; i++) { pCtx.fillStyle = Math.random() > 0.5 ? '#555' : '#333'; pCtx.fillRect(Math.random()*64, Math.random()*64, 2, 2); }
-        asphaltPattern = ctx.createPattern(pCanvas, 'repeat');
-    }
-
-    function resize() { canvas.width = window.innerWidth; canvas.height = window.innerHeight; generateAsphalt(); }
-    window.addEventListener('resize', resize); resize();
-
-    // --- Intro Logic ---
-    const introScreen = document.getElementById('introScreen');
-    const introVideo = document.getElementById('introVideo');
-    const skipBtn = document.getElementById('skipBtn');
-    const unmuteBtn = document.getElementById('unmuteIntroBtn');
-
-    function endIntro() {
-        introVideo.pause();
-        introScreen.classList.add('hidden');
-        state = 'MENU';
-        document.getElementById('startScreen').classList.remove('hidden');
-    }
-
-    introVideo.addEventListener('ended', endIntro);
-    skipBtn.addEventListener('click', endIntro);
-    
-    unmuteBtn.addEventListener('click', () => {
-        introVideo.muted = false;
-        unmuteBtn.classList.add('hidden');
-    });
-
-    // --- Game Logic ---
-    let lastTime = 0;
-
-    function startGame() {
-        const input = document.getElementById('playerNameInput');
-        if(input.value.trim() === "") { alert("Il faut un nom pour le permis !"); return; }
-        playerName = input.value.trim();
-        if(audioCtx.state === 'suspended') audioCtx.resume();
-        
-        // Try Fullscreen
-        toggleFullScreen(); // Try force fullscreen on start
-
-        currentLevel = 0; penaltyTime = 0; startTime = Date.now();
-        loadLevel(0);
-        document.getElementById('startScreen').classList.add('hidden');
-        document.getElementById('endScreen').classList.add('hidden');
-        document.getElementById('gameUI').classList.remove('hidden');
-        document.getElementById('gameOverlay').classList.remove('hidden');
-        
-        if (!gameLoopId) {
-            lastTime = performance.now();
-            gameLoopId = requestAnimationFrame(animate);
-        }
-    }
-
-    function quitGame() {
-        if(confirm("Abandonner l'examen ?")) {
-            state = 'MENU';
-            document.getElementById('gameUI').classList.add('hidden');
-            document.getElementById('gameOverlay').classList.add('hidden');
-            document.getElementById('startScreen').classList.remove('hidden');
-        }
-    }
-
-    function loadLevel(idx) {
-        state = 'PLAYING';
-        car.speed = 0; car.steering = 0; car.gear = 1;
-        car.inputs.gas = false; car.inputs.brake = false; car.inputs.steerTarget = 0;
-        updateGearUI();
-        obstacles = []; targetZone = null; winStartTime = 0; hasReversed = false;
-        const lvl = LEVELS[idx];
-        lvl.setup();
-        document.getElementById('levelName').innerText = lvl.title;
-        document.getElementById('monitorMsg').innerText = lvl.msg;
-        document.getElementById('feedbackUI').classList.add('hidden');
-    }
-
-    function update(dt) {
-        if (state !== 'PLAYING') return;
-        let elapsed = (Date.now() - startTime) / 1000 + penaltyTime;
-        document.getElementById('timerVal').innerText = elapsed.toFixed(2) + "s";
-        handleSteeringInput(dt);
-        
-        const prevX = car.x; const prevY = car.y; const prevAngle = car.angle;
-        const gas = car.inputs.gas || keys.up; const brake = car.inputs.brake || keys.down;
-        if (car.gear === -1 && Math.abs(car.speed) > 0.1) hasReversed = true;
-        
-        if (gas) { if (car.gear === 1 && car.speed < 4) car.speed += 0.2 * dt; if (car.gear === -1 && car.speed > -2) car.speed -= 0.15 * dt; }
-        else if (brake) { if (car.speed > 0.1) car.speed -= 0.3 * dt; else if (car.speed < -0.1) car.speed += 0.3 * dt; else car.speed = 0; }
-        else { car.speed *= Math.pow(0.95, dt); if (Math.abs(car.speed) < 0.05) car.speed = 0; }
-
-        if (Math.abs(car.speed) > 0.01) {
-            const angularVelocity = (car.speed / WHEELBASE) * Math.tan(car.steering);
-            car.angle += angularVelocity * dt;
-            car.x += car.speed * Math.cos(car.angle) * dt;
-            car.y += car.speed * Math.sin(car.angle) * dt;
-        }
-        
-        if (checkCollisions()) {
-            car.x = prevX; car.y = prevY; car.angle = prevAngle; car.speed = -car.speed * 0.5;
-        }
-        checkWin();
-    }
-
-    const wheelVisual = document.getElementById('wheelVisual');
-    function handleSteeringInput(dt) {
-        if (!isSteering) {
-            if (keys.left) car.inputs.steerTarget = -1;
-            else if (keys.right) car.inputs.steerTarget = 1;
-            else car.inputs.steerTarget = 0;
-            
-            // Keyboard Visual Feedback for new wheel
-            const targetAngle = car.inputs.steerTarget * 120; 
-            wheelVisual.style.transform = `rotate(${targetAngle}deg)`;
-        }
-        const steerSpeed = 0.1 * dt;
-        const target = car.inputs.steerTarget * MAX_STEER;
-        if (car.steering < target) car.steering = Math.min(target, car.steering + steerSpeed);
-        if (car.steering > target) car.steering = Math.max(target, car.steering - steerSpeed);
-    }
-
-    function checkCollisions() {
-        const corners = getCarCorners(car);
-        let hit = false;
-        for (let obs of obstacles) {
-            if (obs.type === 'cone' || obs.type === 'sign') { for (let p of corners) if (Math.hypot(p.x - obs.x, p.y - obs.y) < 10) hit = true; }
-            else { let w = obs.w || 30; let h = obs.h || 30; for (let p of corners) if (p.x > obs.x - w/2 && p.x < obs.x + w/2 && p.y > obs.y - h/2 && p.y < obs.y + h/2) hit = true; }
-            if (hit) { 
-                if (Date.now() - lastCrashTime > 1000) crash("Boom ! Pénalité +5s"); 
-                return true; 
-            }
-        }
-        if (car.x < 0 || car.x > canvas.width || car.y < 0 || car.y > canvas.height) {
-            if (Date.now() - lastCrashTime > 1000) crash("Sortie de route ! +5s");
-            return true;
-        }
-        return false;
-    }
-
-    function getCarCorners(c) {
-        const cos = Math.cos(c.angle); const sin = Math.sin(c.angle);
-        const front = 30; const back = 30; const side = 15;
-        return [
-            { x: c.x + cos*front - sin*side, y: c.y + sin*front + cos*side },
-            { x: c.x + cos*front + sin*side, y: c.y + sin*front - cos*side },
-            { x: c.x - cos*back + sin*side, y: c.y - sin*back - cos*side },
-            { x: c.x - cos*back - sin*side, y: c.y - sin*back + cos*side }
-        ];
-    }
-
-    function crash(msg) {
-        lastCrashTime = Date.now(); penaltyTime += 5; playSound('crash');
-        const timerEl = document.getElementById('timerVal');
-        timerEl.classList.add('penalty-flash');
-        setTimeout(() => timerEl.classList.remove('penalty-flash'), 500);
-        document.getElementById('monitorMsg').innerText = msg;
-        car.speed = -car.speed * 0.5;
-    }
-
-    function isPointInTarget(p, t) {
-        let tx = p.x - t.x; let ty = p.y - t.y;
-        let cos = Math.cos(-t.angle); let sin = Math.sin(-t.angle);
-        let rx = tx * cos - ty * sin; let ry = tx * sin + ty * cos;
-        const tolerance = 3;
-        return (rx > (-t.w/2 - tolerance) && rx < (t.w/2 + tolerance) && ry > (-t.h/2 - tolerance) && ry < (t.h/2 + tolerance));
-    }
-
-    function checkWin() {
-        if (!targetZone) return;
-        if (Math.abs(car.speed) > 0.1) { winStartTime = 0; return; }
-        const dx = car.x - targetZone.x; const dy = car.y - targetZone.y; const dist = Math.hypot(dx, dy);
-        if (dist < 60) {
-            if (winStartTime === 0) {
-                if (currentLevel === 2 && !hasReversed) { document.getElementById('monitorMsg').innerText = "Et la marche arrière ?! C'est un créneau !"; return; }
-                winStartTime = Date.now(); document.getElementById('monitorMsg').innerText = "Bouge plus... ⏳";
-            } else {
-                if (Date.now() - winStartTime > 1500) {
-                    const corners = getCarCorners(car); let cornersIn = 0;
-                    for(let p of corners) if(isPointInTarget(p, targetZone)) cornersIn++;
-                    let angleDiff = Math.abs(car.angle - targetZone.angle);
-                    while(angleDiff > Math.PI) angleDiff -= Math.PI; while(angleDiff < -Math.PI) angleDiff += Math.PI;
-                    angleDiff = Math.abs(angleDiff); if(angleDiff > Math.PI) angleDiff = 2*Math.PI - angleDiff;
-                    let parkingPenalty = 0; let msgTitle = ""; let msgText = "";
-                    if (cornersIn === 4) { parkingPenalty = 0; msgTitle = "PARFAIT !"; msgText = "Stationnement impeccable."; }
-                    else {
-                        let cornerPenalty = (4 - cornersIn) * 2; let distPenalty = Math.floor(dist / 10); let angPenalty = Math.floor(angleDiff / 0.1);
-                        parkingPenalty = cornerPenalty + distPenalty + angPenalty; if (parkingPenalty < 1) parkingPenalty = 1; 
-                        msgTitle = "GARÉ (MAIS BOF)"; msgText = "Pénalité précision: +" + parkingPenalty + "s";
-                    }
-                    penaltyTime += parkingPenalty; playSound('win');
-                    const fb = document.getElementById('feedbackUI');
-                    document.getElementById('fbTitle').innerText = msgTitle; document.getElementById('fbText').innerText = msgText;
-                    if(parkingPenalty === 0) { document.getElementById('fbTitle').style.color = "#2ecc71"; document.getElementById('fbText').style.color = "#fff"; }
-                    else { document.getElementById('fbTitle').style.color = "#f1c40f"; document.getElementById('fbText').style.color = "#ff7675"; }
-                    fb.classList.remove('hidden');
-                    state = 'TRANSITION'; winStartTime = 0; setTimeout(nextLevel, 2000);
-                }
-            }
-        } else { winStartTime = 0; }
-    }
-
-    function nextLevel() {
-        currentLevel++;
-        if (currentLevel >= LEVELS.length) finishExam();
-        else loadLevel(currentLevel);
-    }
-
-    function finishExam() {
-        state = 'FINISHED';
-        let finalTime = (Date.now() - startTime) / 1000 + penaltyTime;
-        finalTimeStr = finalTime.toFixed(2) + "s";
-        document.getElementById('certName').innerText = playerName.toUpperCase();
-        document.getElementById('certDate').innerText = new Date().toLocaleDateString();
-        document.getElementById('certPenalties').innerText = "+" + penaltyTime;
-        document.getElementById('certTime').innerText = finalTimeStr;
-        document.getElementById('certId').innerText = "#" + Math.floor(Math.random()*9999);
-        document.getElementById('gameUI').classList.add('hidden');
-        document.getElementById('gameOverlay').classList.add('hidden');
-        document.getElementById('endScreen').classList.remove('hidden');
-    }
-
-    function draw() {
-        if (state !== 'PLAYING') { ctx.clearRect(0,0,canvas.width, canvas.height); return; }
-        ctx.fillStyle = asphaltPattern || '#555'; ctx.fillRect(0, 0, canvas.width, canvas.height);
-        
-        if (currentLevel === 0) {
-             // Level 1: Stop (Horizontal Road)
-             const roadY = getCY(50); const roadH = 160;
-             ctx.fillRect(0, roadY - roadH/2, canvas.width, roadH);
-             ctx.strokeStyle = '#fff'; ctx.lineWidth = 4; ctx.setLineDash([20, 20]);
-             ctx.beginPath(); ctx.moveTo(0, roadY); ctx.lineTo(canvas.width, roadY); ctx.stroke(); ctx.setLineDash([]);
-             // Stop line at right (near 60%)
-             ctx.lineWidth = 8; ctx.beginPath(); ctx.moveTo(getCX(65), roadY + 10); ctx.lineTo(getCX(65), roadY + roadH/2 - 10); ctx.stroke();
-        } 
-        else if (currentLevel === 1) {
-             // Level 2: Bataille (Vertical Road on Left, Parking on Right)
-             ctx.fillRect(0, 0, canvas.width, canvas.height);
-             ctx.strokeStyle = '#fff'; ctx.lineWidth = 4;
-             const cx = getCX(70); const cy = getCY(50);
-             // Divider line
-             ctx.beginPath(); ctx.moveTo(getCX(50), 0); ctx.lineTo(getCX(50), canvas.height); ctx.stroke();
-             // Parking spots lines
-             ctx.beginPath(); ctx.moveTo(cx-45, cy-35); ctx.lineTo(cx+45, cy-35); ctx.stroke();
-             ctx.beginPath(); ctx.moveTo(cx-45, cy+35); ctx.lineTo(cx+45, cy+35); ctx.stroke();
-        }
-        else if (currentLevel === 2) {
-             // Level 3: Créneau (Horizontal Road)
-             const roadY = getCY(60);
-             ctx.fillRect(0, 0, canvas.width, 120 + roadY); // Road covers top area
-             // Curb at top
-             const curbY = roadY - 70;
-             ctx.fillStyle = '#ccc'; ctx.fillRect(0, 0, canvas.width, curbY);
-             ctx.strokeStyle = '#fff'; ctx.lineWidth = 4; ctx.setLineDash([20, 20]);
-             ctx.beginPath(); ctx.moveTo(0, roadY + 20); ctx.lineTo(canvas.width, roadY + 20); ctx.stroke(); ctx.setLineDash([]);
-        }
-
-        if (targetZone) {
-            ctx.save(); ctx.translate(targetZone.x, targetZone.y); ctx.rotate(targetZone.angle);
-            ctx.strokeStyle = '#2ecc71'; ctx.lineWidth = 4; ctx.setLineDash([10, 10]);
-            ctx.strokeRect(-targetZone.w/2, -targetZone.h/2, targetZone.w, targetZone.h);
-            ctx.fillStyle = 'rgba(46, 204, 113, 0.2)'; ctx.fillRect(-targetZone.w/2, -targetZone.h/2, targetZone.w, targetZone.h);
-            ctx.fillStyle = 'rgba(255,255,255,0.5)'; ctx.beginPath(); ctx.moveTo(-10, 0); ctx.lineTo(10, 0); ctx.lineTo(0, -20); ctx.fill();
-            ctx.restore();
-        }
-        for (let obs of obstacles) {
-            if (obs.type === 'cone') ctx.drawImage(coneImg, obs.x - 10, obs.y - 10, 20, 20);
-            else if (obs.type === 'sign') ctx.drawImage(stopImg, obs.x - 20, obs.y - 20, 40, 40);
-            else if (obs.type === 'wall') {
-                ctx.fillStyle = '#95a5a6'; ctx.fillRect(obs.x - obs.w/2, obs.y - obs.h/2, obs.w, obs.h);
-                ctx.strokeStyle = '#7f8c8d'; ctx.strokeRect(obs.x - obs.w/2, obs.y - obs.h/2, obs.w, obs.h);
-                // Stripe effect for walls
-                ctx.strokeStyle = '#fff'; ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(obs.x - obs.w/2, obs.y-obs.h/2); ctx.lineTo(obs.x+obs.w/2, obs.y+obs.h/2); ctx.stroke();
-            } else if (obs.type === 'car') {
-                ctx.save(); ctx.translate(obs.x, obs.y); 
-                if (obs.angle) ctx.rotate(obs.angle); 
-                ctx.drawImage(carObsImg, -15, -30, 30, 60); ctx.restore();
-            }
-        }
-        drawCar();
-    }
-
-    function drawCar() {
-        ctx.save(); ctx.translate(car.x, car.y); ctx.rotate(car.angle + Math.PI/2);
-        if (Date.now() - lastCrashTime < 1000 && Math.floor(Date.now() / 100) % 2 === 0) ctx.globalAlpha = 0.5;
-        ctx.fillStyle = '#000'; ctx.fillRect(-14, 15, 6, 12); ctx.fillRect(8, 15, 6, 12);
-        ctx.save(); ctx.translate(-11, -20); ctx.rotate(car.steering); ctx.fillRect(-3, -6, 6, 12); ctx.restore();
-        ctx.save(); ctx.translate(11, -20); ctx.rotate(car.steering); ctx.fillRect(-3, -6, 6, 12); ctx.restore();
-        ctx.drawImage(carImg, -15, -30, 30, 60);
-        if (car.inputs.brake || keys.down) { ctx.fillStyle = 'rgba(255, 0, 0, 0.6)'; ctx.shadowColor = '#f00'; ctx.shadowBlur = 15; ctx.fillRect(-12, 26, 6, 3); ctx.fillRect(6, 26, 6, 3); ctx.shadowBlur = 0; }
-        if (car.gear === -1) { ctx.fillStyle = 'rgba(255, 255, 255, 0.8)'; ctx.fillRect(-8, 26, 4, 3); }
-        ctx.restore();
-    }
-
-    function animate(time) {
-        gameLoopId = requestAnimationFrame(animate);
-        if (!lastTime) { lastTime = time; return; }
-        const dt = (time - lastTime) / 16.67;
-        lastTime = time;
-        update(dt);
-        draw();
-    }
-
-    const keys = { up: false, down: false, left: false, right: false };
-    window.addEventListener('keydown', (e) => { 
-        // Empêcher le comportement par défaut
-        if(['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', ' ', 'Shift', 'z', 'q', 's', 'd'].includes(e.key)) {
-            e.preventDefault();
-        }
-        switch(e.key) { 
-            case 'ArrowLeft': case 'q': keys.left = true; break; 
-            case 'ArrowRight': case 'd': keys.right = true; break; 
-            case 'ArrowUp': case 'z': keys.up = true; break; 
-            case 'ArrowDown': case 's': keys.down = true; break; 
-            case ' ': case 'Shift': toggleGear(); break; 
-        } 
-    });
-    window.addEventListener('keyup', (e) => { switch(e.key) { case 'ArrowLeft': case 'q': keys.left = false; break; case 'ArrowRight': case 'd': keys.right = false; break; case 'ArrowUp': case 'z': keys.up = false; break; case 'ArrowDown': case 's': keys.down = false; break; } });
-    function toggleGear() { car.gear *= -1; updateGearUI(); playSound('click'); }
-    function updateGearUI() { const stick = document.getElementById('gearStick'); if (car.gear === 1) { stick.innerText = "D"; stick.className = "gear-stick gear-d"; } else { stick.innerText = "R"; stick.className = "gear-stick gear-r"; } }
-    const wheelZone = document.getElementById('wheelZone'); const wheelKnob = document.getElementById('wheelKnob'); let isSteering = false;
-    
-    // FIX: Variable wheelTouchId was missing in global scope, declared here
-    let wheelTouchId = null;
-
-    function handleSteer(cx, cy) { 
-        const rect = wheelZone.getBoundingClientRect(); 
-        const center_x = rect.left + rect.width / 2;
-        const center_y = rect.top + rect.height / 2;
-        const dx = cx - center_x;
-        const dy = cy - center_y;
-        
-        let angle = Math.atan2(dy, dx) * (180 / Math.PI);
-        angle += 90;
-        
-        if (angle > 180) angle -= 360;
-        if (angle < -180) angle += 360;
-        
-        const maxAngle = 110;
-        angle = Math.max(-maxAngle, Math.min(maxAngle, angle));
-        
-        wheelVisual.style.transform = `rotate(${angle}deg)`;
-        car.inputs.steerTarget = angle / maxAngle;
-    }
-    
-    wheelZone.addEventListener('touchstart', e => { 
-        e.preventDefault(); 
-        const touch = e.changedTouches[0];
-        wheelTouchId = touch.identifier;
-        isSteering = true; 
-        handleSteer(touch.clientX, touch.clientY); 
-    }, {passive: false});
-
-    wheelZone.addEventListener('touchmove', e => { 
-        e.preventDefault(); 
-        if(!isSteering) return;
-        for(let i=0; i<e.changedTouches.length; i++) {
-            if(e.changedTouches[i].identifier === wheelTouchId) {
-                handleSteer(e.changedTouches[i].clientX, e.changedTouches[i].clientY);
-            }
-        }
-    }, {passive: false});
-
-    const endSteer = (e) => {
-        for(let i=0; i<e.changedTouches.length; i++) {
-            if(e.changedTouches[i].identifier === wheelTouchId) {
-                isSteering = false;
-                wheelTouchId = null;
-                if (!keys.left && !keys.right) { 
-                    car.inputs.steerTarget = 0; 
-                    wheelVisual.style.transform = `rotate(0deg)`;
-                }
-            }
-        }
-    };
-    
-    wheelZone.addEventListener('touchend', endSteer);
-    wheelZone.addEventListener('touchcancel', endSteer);
-    
-    // Mouse fallback
-    wheelZone.addEventListener('mousedown', e => { isSteering = true; handleSteer(e.clientX, e.clientY); });
-    window.addEventListener('mousemove', e => { if(isSteering) handleSteer(e.clientX, e.clientY); });
-    window.addEventListener('mouseup', () => { 
-        isSteering = false; 
-        if (!keys.left && !keys.right) { 
-            car.inputs.steerTarget = 0; 
-            wheelVisual.style.transform = `rotate(0deg)`;
-        }
-    });
-
-    const btnGas = document.getElementById('btnGas'); const btnBrake = document.getElementById('btnBrake'); const gearStick = document.getElementById('gearStick'); const setGas = (on) => car.inputs.gas = on; const setBrake = (on) => car.inputs.brake = on;
-    btnGas.addEventListener('touchstart', (e) => { e.preventDefault(); setGas(true); }); btnGas.addEventListener('touchend', (e) => { e.preventDefault(); setGas(false); }); btnGas.addEventListener('mousedown', () => setGas(true)); btnGas.addEventListener('mouseup', () => setGas(false));
-    btnBrake.addEventListener('touchstart', (e) => { e.preventDefault(); setBrake(true); }); btnBrake.addEventListener('touchend', (e) => { e.preventDefault(); setBrake(false); }); btnBrake.addEventListener('mousedown', () => setBrake(true)); btnBrake.addEventListener('mouseup', () => setBrake(false));
-    gearStick.addEventListener('touchstart', (e) => { e.preventDefault(); toggleGear(); }); gearStick.addEventListener('mousedown', (e) => { e.preventDefault(); toggleGear(); });
-    document.getElementById('startBtn').addEventListener('click', startGame); document.getElementById('quitBtn').addEventListener('click', quitGame);
-    document.getElementById('restartBtn').addEventListener('click', () => { document.getElementById('endScreen').classList.add('hidden'); document.getElementById('startScreen').classList.remove('hidden'); });
-    function playSound(type) { if (!audioCtx || isMuted) return; const osc = audioCtx.createOscillator(); const gain = audioCtx.createGain(); osc.connect(gain); gain.connect(audioCtx.destination); const now = audioCtx.currentTime; if (type === 'crash') { osc.type = 'sawtooth'; osc.frequency.setValueAtTime(100, now); osc.frequency.exponentialRampToValueAtTime(20, now + 0.5); gain.gain.setValueAtTime(0.3, now); gain.gain.linearRampToValueAtTime(0, now + 0.5); osc.start(); osc.stop(now + 0.5); } else if (type === 'win') { osc.type = 'sine'; osc.frequency.setValueAtTime(400, now); osc.frequency.linearRampToValueAtTime(800, now + 0.2); gain.gain.setValueAtTime(0.2, now); gain.gain.linearRampToValueAtTime(0, now + 0.2); osc.start(); osc.stop(now + 0.2); } else if (type === 'click') { osc.type = 'square'; osc.frequency.setValueAtTime(200, now); gain.gain.setValueAtTime(0.1, now); gain.gain.linearRampToValueAtTime(0, now + 0.05); osc.start(); osc.stop(now + 0.05); } }
-</script>
+  <script src="./game.js"></script>
 </body>
 </html>
