@@ -422,19 +422,21 @@
       }
     },
 
-    // 2) Slalom (V3.2 : plots alternés = slalom obligatoire mais jouable)
+    // 2) Slalom (portes alternées : une porte sur deux, position haute/basse)
     {
       title: "2) SLALOM",
-      intro: "Slalom obligatoire : plots alternés. Tout droit = tu touches !",
+      intro: "Portes alternées : une porte sur deux. Ça slalome, mais ça reste fun 😉",
       setup() {
         resetWorld();
 
-        // Couloir un peu resserré (anti-contournement), mais pas étouffant
+        // Couloir : assez serré pour empêcher de contourner les portes,
+        // mais suffisamment large pour être jouable au clavier.
         const roadTop = CY(26);
         const roadBot = CY(78);
         walls.push({ x: CX(50), y: roadTop - 8, w: CX(100), h: 16, type:"curb" });
         walls.push({ x: CX(50), y: roadBot + 8, w: CX(100), h: 16, type:"curb" });
 
+        // Départ
         CAR.x = CX(12);
         CAR.y = CY(52);
         CAR.a = 0;
@@ -443,48 +445,62 @@
         CAR.gear = 1;
         updateGearUI();
 
-        // ✅ Le vrai truc : une ligne de plots "blocage" alternés
-        // - Assez espacés pour être fun au clavier
-        // - Mais impossible de passer en ligne droite sans toucher
-        const n = 7; // moins qu'avant
-        const xStart = CX(28);
-        const xEnd = CX(74);
+        // -------------------------
+        // Mécanique demandée :
+        // - une "porte" = 2 plots (deux cônes) à passer entre
+        // - on enlève une porte sur deux (2e, 4e, 6e…)
+        // - les portes restantes alternent haut / bas (zigzag)
+        // -------------------------
         const centerY = CY(52);
+        const xStart = CX(26);
+        const xEnd = CX(78);
 
-        // difficulté réglable
-        const offset = easyMode ? 56 : 68;     // amplitude haut/bas (plus grand = plus de slalom)
-        const spacingJitter = easyMode ? 6 : 10;
-        const r = easyMode ? 15 : 16;          // plots un poil plus gros en normal
+        // réglages "feel"
+        const gateTotal = easyMode ? 9 : 11; // nombre de positions possibles (on en garde une sur deux)
+        const gap = easyMode ? 92 : 84;      // largeur de la porte (plus petit = plus précis)
+        const offset = easyMode ? 56 : 64;   // décalage haut/bas des portes
+        const jitterX = easyMode ? 5 : 8;
+        const jitterY = easyMode ? 6 : 9;
+        const r = easyMode ? 14 : 15;
 
-        // Pour éviter une trajectoire “au millimètre”, on met un léger bruit
-        for (let i = 0; i < n; i++) {
-          const t = i / (n - 1);
-          const x = lerp(xStart, xEnd, t) + rand(-spacingJitter, spacingJitter);
+        // bornes pour que les plots ne collent pas aux trottoirs
+        const minY = roadTop + 28;
+        const maxY = roadBot - 28;
 
-          const dir = (i % 2 === 0) ? -1 : 1;
-          const y = centerY + dir * offset + rand(-10, 10);
-
-          cones.push({ x, y, r, hit: false });
+        function addGate(x, yC) {
+          const y1 = clamp(yC - gap / 2, minY, maxY);
+          const y2 = clamp(yC + gap / 2, minY, maxY);
+          cones.push({ x, y: y1, r, hit: false });
+          cones.push({ x, y: y2, r, hit: false });
         }
 
-        // Deux plots bonus proches du centre (anti “corridor tout droit”)
-        // mais pas trop proches pour rester jouable
-        if (!easyMode) {
-          cones.push({ x: CX(46), y: centerY + rand(-14, 14), r: 14, hit: false });
-          cones.push({ x: CX(58), y: centerY + rand(-14, 14), r: 14, hit: false });
+        for (let i = 0; i < gateTotal; i++) {
+          // enlever une porte sur deux (on garde 1,3,5…)
+          if (i % 2 === 1) continue;
+
+          const t = i / (gateTotal - 1);
+          const x = lerp(xStart, xEnd, t) + rand(-jitterX, jitterX);
+
+          // alternance haut / bas sur les portes restantes
+          const k = Math.floor(i / 2); // index des portes gardées
+          const dir = (k % 2 === 0) ? -1 : 1;
+          const yC = centerY + dir * offset + rand(-jitterY, jitterY);
+
+          addGate(x, yC);
         }
 
-        target = { x: CX(88), y: CY(52), w: 150, h: 120, a: 0 };
+        // Zone d’arrivée
+        target = { x: CX(88), y: centerY, w: 150, h: 120, a: 0 };
 
         meta.slalomHintShown = false;
-        setMsg("Enchaîne le slalom. Petits coups de volant.");
-        showToast("SLALOM", "Obligatoire, mais jouable", 850);
+        setMsg("Slalom : passe entre chaque porte. Petits coups de volant + lève le gaz.");
+        showToast("SLALOM", "Portes alternées (une sur deux)", 900);
       },
       update() {
-        // petit rappel si le joueur fonce plein gaz trop tôt
-        if (!meta.slalomHintShown && elapsed() > 2 && Math.abs(CAR.v) > 220) {
+        // petit rappel si le joueur fonce trop en ligne droite
+        if (!meta.slalomHintShown && elapsed() > 2.2 && Math.abs(CAR.v) > 235) {
           meta.slalomHintShown = true;
-          setMsg("Conseil : lève le gaz entre deux plots 😉");
+          setMsg("Conseil : lève le gaz avant chaque porte 😉");
         }
       }
     },
@@ -1135,11 +1151,12 @@ Run clean : ${clean}
 
     ctx.fillStyle = "rgba(246,195,67,0.95)";
     ctx.beginPath(); ctx.arc(0,0,c.r,0,Math.PI*2); ctx.fill();
-    ctx.strokeStyle = "rgba(0,0,0,0.25)";
-    ctx.lineWidth = 2; ctx.stroke();
+    ctx.strokeStyle = "rgba(0,0,0,0.22)";
+    ctx.lineWidth = 2;
+    ctx.stroke();
 
-    ctx.fillStyle = "rgba(255,255,255,0.70)";
-    ctx.beginPath(); ctx.arc(0,0,c.r*0.45,0,Math.PI*2); ctx.fill();
+    ctx.fillStyle = "rgba(255,255,255,0.65)";
+    ctx.beginPath(); ctx.arc(0,0,c.r*0.42,0,Math.PI*2); ctx.fill();
 
     ctx.restore();
   }
@@ -1149,80 +1166,72 @@ Run clean : ${clean}
     ctx.translate(CAR.x, CAR.y);
     ctx.rotate(CAR.a + Math.PI/2);
 
-    ctx.globalAlpha = 0.28;
+    // shadow
+    ctx.globalAlpha = 0.30;
     ctx.fillStyle = "black";
     ctx.beginPath();
-    ctx.ellipse(0, 8, 18, 28, 0, 0, Math.PI*2);
+    ctx.ellipse(0, 8, 16, 26, 0, 0, Math.PI*2);
     ctx.fill();
     ctx.globalAlpha = 1;
 
+    // body
     ctx.fillStyle = "rgba(255,255,255,0.92)";
-    ctx.strokeStyle = "rgba(0,0,0,0.25)";
+    ctx.strokeStyle = "rgba(0,0,0,0.20)";
     ctx.lineWidth = 2;
     ctx.beginPath();
-    ctx.roundRect(-18, -34, 36, 68, 12);
+    ctx.roundRect(-16, -30, 32, 60, 10);
     ctx.fill();
     ctx.stroke();
 
-    ctx.fillStyle = "rgba(10,20,40,0.70)";
-    ctx.beginPath(); ctx.roundRect(-13, -22, 26, 14, 7); ctx.fill();
-    ctx.beginPath(); ctx.roundRect(-13, 8, 26, 14, 7); ctx.fill();
+    // windows
+    ctx.fillStyle = "rgba(10,20,40,0.60)";
+    ctx.beginPath();
+    ctx.roundRect(-10, -18, 20, 14, 6);
+    ctx.fill();
+    ctx.beginPath();
+    ctx.roundRect(-10, 6, 20, 14, 6);
+    ctx.fill();
 
-    ctx.fillStyle = "rgba(246,195,67,0.9)";
-    ctx.fillRect(-12, -2, 24, 4);
-
-    const braking = (CAR.inputs.brake || keys.down) && Math.abs(CAR.v) > 5;
+    // brake light
+    const braking = CAR.inputs.brake || keys.down;
     if (braking) {
-      ctx.shadowColor = "rgba(255,80,80,0.8)";
-      ctx.shadowBlur = 18;
-      ctx.fillStyle = "rgba(255,80,80,0.8)";
-      ctx.fillRect(-13, 26, 8, 4);
-      ctx.fillRect(5, 26, 8, 4);
+      ctx.fillStyle = "rgba(255,80,80,0.9)";
+      ctx.shadowColor = "rgba(255,80,80,0.9)";
+      ctx.shadowBlur = 14;
+      ctx.fillRect(-12, 26, 6, 3);
+      ctx.fillRect(6, 26, 6, 3);
       ctx.shadowBlur = 0;
     }
+
+    // reverse light
     if (CAR.gear === -1) {
       ctx.fillStyle = "rgba(255,255,255,0.85)";
-      ctx.fillRect(-2, 26, 4, 4);
+      ctx.fillRect(-8, 26, 4, 3);
     }
 
     ctx.restore();
   }
 
   // =========================
-  // Main loop
+  // RAF loop
   // =========================
-  let lastT = 0;
-  function frame(t){
-    requestAnimationFrame(frame);
-    if (!lastT) { lastT = t; return; }
-    let dt = (t - lastT) / 1000;
+  let lastT = performance.now();
+  function loop(t){
+    const dt = Math.min(0.033, (t - lastT) / 1000);
     lastT = t;
-    dt = Math.min(dt, 0.033);
-
     update(dt);
     draw();
+    requestAnimationFrame(loop);
   }
 
-  // =========================
-  // Init / defaults
-  // =========================
+  // init
+  resize();
+  requestAnimationFrame(loop);
+
+  // start at menu
   function setModeButtons() {
     btnModeContest.classList.toggle("active", mode === "CONTEST");
     btnModePractice.classList.toggle("active", mode === "PRACTICE");
   }
   setModeButtons();
-  updateGearUI();
-  hud.classList.add("hidden");
-  screenEnd.classList.add("hidden");
-  screenStart.classList.remove("hidden");
-
-  btnModeContest.addEventListener("click", ()=> sfx("click"));
-  btnModePractice.addEventListener("click", ()=> sfx("click"));
-  btnStart.addEventListener("click", ()=> sfx("click"));
-  btnQuit.addEventListener("click", ()=> sfx("click"));
-  btnReplay.addEventListener("click", ()=> sfx("click"));
-  btnMenu.addEventListener("click", ()=> sfx("click"));
-
-  resize();
-  requestAnimationFrame(frame);
 })();
