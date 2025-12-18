@@ -231,7 +231,7 @@
   let startTimeMs = null;
   let penalty = 0;
 
-  // Clean run (addictive)
+  // Clean run
   let cleanRun = true;
 
   // Shake
@@ -422,21 +422,18 @@
       }
     },
 
-    // 2) Slalom (portes alternées : une porte sur deux, position haute/basse)
+    // 2) Slalom (FACILITÉ : portes beaucoup plus larges + moins d'angle)
     {
       title: "2) SLALOM",
-      intro: "Portes alternées : une porte sur deux. Ça slalome, mais ça reste fun 😉",
+      intro: "Slalom fun : portes larges, tu peux tourner sans galérer.",
       setup() {
         resetWorld();
 
-        // Couloir : assez serré pour empêcher de contourner les portes,
-        // mais suffisamment large pour être jouable au clavier.
         const roadTop = CY(26);
         const roadBot = CY(78);
         walls.push({ x: CX(50), y: roadTop - 8, w: CX(100), h: 16, type:"curb" });
         walls.push({ x: CX(50), y: roadBot + 8, w: CX(100), h: 16, type:"curb" });
 
-        // Départ
         CAR.x = CX(12);
         CAR.y = CY(52);
         CAR.a = 0;
@@ -446,24 +443,33 @@
         updateGearUI();
 
         // -------------------------
-        // Mécanique demandée :
-        // - une "porte" = 2 plots (deux cônes) à passer entre
-        // - on enlève une porte sur deux (2e, 4e, 6e…)
-        // - les portes restantes alternent haut / bas (zigzag)
+        // Ajustements "beaucoup plus facile"
         // -------------------------
         const centerY = CY(52);
-        const xStart = CX(26);
+        const xStart = CX(28);
         const xEnd = CX(78);
 
-        // réglages "feel"
-        const gateTotal = easyMode ? 9 : 11; // nombre de positions possibles (on en garde une sur deux)
-        const gap = easyMode ? 92 : 84;      // largeur de la porte (plus petit = plus précis)
-        const offset = easyMode ? 56 : 64;   // décalage haut/bas des portes
-        const jitterX = easyMode ? 5 : 8;
-        const jitterY = easyMode ? 6 : 9;
-        const r = easyMode ? 14 : 15;
+        // ✅ IMPORTANT : on élargit fortement la porte
+        // Avant : ~84-92
+        // Maintenant : 132 (ENORME différence, ça devient jouable clavier)
+        const gap = easyMode ? 150 : 132;
 
-        // bornes pour que les plots ne collent pas aux trottoirs
+        // ✅ Moins de zigzag (plus doux)
+        // Avant : ~56-64
+        // Maintenant : 42
+        const offset = easyMode ? 36 : 42;
+
+        // ✅ Moins de portes (moins “impossible”)
+        // On garde une porte sur deux : donc 7 positions -> 4 portes réelles.
+        const gateTotal = 7;
+
+        // ✅ Moins de hasard
+        const jitterX = 4;
+        const jitterY = 4;
+
+        // Plots un peu plus petits pour le ressenti
+        const r = 13;
+
         const minY = roadTop + 28;
         const maxY = roadBot - 28;
 
@@ -475,34 +481,25 @@
         }
 
         for (let i = 0; i < gateTotal; i++) {
-          // enlever une porte sur deux (on garde 1,3,5…)
+          // enlever une porte sur deux (on garde 1,3,5,7...)
           if (i % 2 === 1) continue;
 
           const t = i / (gateTotal - 1);
           const x = lerp(xStart, xEnd, t) + rand(-jitterX, jitterX);
 
-          // alternance haut / bas sur les portes restantes
-          const k = Math.floor(i / 2); // index des portes gardées
+          const k = Math.floor(i / 2);
           const dir = (k % 2 === 0) ? -1 : 1;
           const yC = centerY + dir * offset + rand(-jitterY, jitterY);
 
           addGate(x, yC);
         }
 
-        // Zone d’arrivée
         target = { x: CX(88), y: centerY, w: 150, h: 120, a: 0 };
 
-        meta.slalomHintShown = false;
-        setMsg("Slalom : passe entre chaque porte. Petits coups de volant + lève le gaz.");
-        showToast("SLALOM", "Portes alternées (une sur deux)", 900);
+        setMsg("Slalom : petits coups de volant. C’est volontairement large 👍");
+        showToast("SLALOM", "Portes élargies (facile)", 900);
       },
-      update() {
-        // petit rappel si le joueur fonce trop en ligne droite
-        if (!meta.slalomHintShown && elapsed() > 2.2 && Math.abs(CAR.v) > 235) {
-          meta.slalomHintShown = true;
-          setMsg("Conseil : lève le gaz avant chaque porte 😉");
-        }
-      }
+      update() {}
     },
 
     // 3) Créneau
@@ -1166,7 +1163,6 @@ Run clean : ${clean}
     ctx.translate(CAR.x, CAR.y);
     ctx.rotate(CAR.a + Math.PI/2);
 
-    // shadow
     ctx.globalAlpha = 0.30;
     ctx.fillStyle = "black";
     ctx.beginPath();
@@ -1174,7 +1170,6 @@ Run clean : ${clean}
     ctx.fill();
     ctx.globalAlpha = 1;
 
-    // body
     ctx.fillStyle = "rgba(255,255,255,0.92)";
     ctx.strokeStyle = "rgba(0,0,0,0.20)";
     ctx.lineWidth = 2;
@@ -1183,7 +1178,6 @@ Run clean : ${clean}
     ctx.fill();
     ctx.stroke();
 
-    // windows
     ctx.fillStyle = "rgba(10,20,40,0.60)";
     ctx.beginPath();
     ctx.roundRect(-10, -18, 20, 14, 6);
@@ -1192,7 +1186,6 @@ Run clean : ${clean}
     ctx.roundRect(-10, 6, 20, 14, 6);
     ctx.fill();
 
-    // brake light
     const braking = CAR.inputs.brake || keys.down;
     if (braking) {
       ctx.fillStyle = "rgba(255,80,80,0.9)";
@@ -1203,7 +1196,6 @@ Run clean : ${clean}
       ctx.shadowBlur = 0;
     }
 
-    // reverse light
     if (CAR.gear === -1) {
       ctx.fillStyle = "rgba(255,255,255,0.85)";
       ctx.fillRect(-8, 26, 4, 3);
