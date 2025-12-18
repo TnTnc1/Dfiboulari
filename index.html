@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1.0,maximum-scale=1.0,user-scalable=no" />
-  <title>Le Défi Boulari V2</title>
+  <title>Le Défi Boulari V2.1</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <link rel="stylesheet" href="./styles.css">
 </head>
@@ -37,18 +37,18 @@
         </div>
       </div>
 
-      <!-- Coach bubble -->
+      <!-- Info bubble -->
       <div class="coach-wrap">
         <div class="coach-bubble" id="monitorBox">
-          <span class="text-2xl mr-2">👮‍♂️</span>
-          <span id="monitorMsg">Bienvenue au Défi Boulari !</span>
+          <span class="text-2xl mr-2">🧑‍🏫</span>
+          <span id="monitorMsg">Bienvenue au Défi Boulari.</span>
         </div>
       </div>
 
-      <!-- Small toast -->
+      <!-- Toast -->
       <div id="toast" class="toast hidden">
-        <div class="toast-title" id="toastTitle">PARFAIT !</div>
-        <div class="toast-text" id="toastText">+0s</div>
+        <div class="toast-title" id="toastTitle">OK</div>
+        <div class="toast-text" id="toastText">…</div>
       </div>
 
       <!-- Controls -->
@@ -81,27 +81,27 @@
           <img src="https://i.postimg.cc/VL0sLRv5/IMG-3343.jpg" alt="Le Défi Boulari" class="menu-logo w-48 mx-auto h-auto object-contain block">
         </div>
 
-        <h1 class="menu-title text-3xl md:text-4xl font-black mb-1">LE DÉFI BOULARI <span class="text-sm font-bold align-top">V2</span></h1>
-        <div class="menu-desc">Un mini-jeu pour s’amuser… et devenir meilleur 🔥</div>
+        <h1 class="menu-title text-3xl md:text-4xl font-black mb-1">LE DÉFI BOULARI <span class="text-sm font-bold align-top">V2.1</span></h1>
+        <div class="menu-desc">Jeu concours • 3 épreuves • court et rejouable</div>
 
         <div class="menu-rules">
           <div class="font-bold mb-1">🏆 À gagner :</div>
           <div class="text-sm text-gray-700 font-semibold">Le meilleur chrono gagne un <span class="badge">BON D’ACHAT</span></div>
-          <div class="text-xs text-gray-500 mt-2">3 épreuves rapides • 1m–2m • Tu peux rejouer direct</div>
+          <div class="text-xs text-gray-500 mt-2">Astuce : tu peux rejouer autant de fois que tu veux.</div>
         </div>
 
         <input type="text" id="playerNameInput" class="input-field" placeholder="Ton Prénom / Pseudo" maxlength="15">
         <button class="btn-main" id="startBtn">JOUER 🚗💨</button>
 
         <div class="mt-3 text-xs text-gray-500">
-          Astuce : en mobile, active le plein écran ⛶ pour un meilleur confort.
+          Recommandé : plein écran ⛶ sur mobile.
         </div>
       </div>
     </div>
 
     <!-- End -->
     <div id="endScreen" class="ui-layer interactive modal-bg hidden">
-      <div class="menu-card" style="max-width:560px;border-top-color:#27ae60;">
+      <div class="menu-card" style="max-width:600px;border-top-color:#27ae60;">
         <div class="certificate">
           <h2 class="text-2xl font-black text-center border-b-2 border-black pb-2 mb-4">
             CERTIFICAT DU DÉFI BOULARI
@@ -122,10 +122,19 @@
               </div>
             </div>
 
-            <div class="mt-3">
-              <div class="score-label">NOTE</div>
-              <div class="grade" id="certGrade">A</div>
-              <div class="text-xs text-gray-500 mt-1" id="certTip">---</div>
+            <div class="mt-3 grid grid-cols-2 gap-3">
+              <div class="score-box">
+                <div class="score-label">MÉDAILLE</div>
+                <div class="score-val" id="certMedal">—</div>
+              </div>
+              <div class="score-box">
+                <div class="score-label">NOTE</div>
+                <div class="score-val" id="certGrade">—</div>
+              </div>
+            </div>
+
+            <div class="mt-2">
+              <div class="text-xs text-gray-600 font-bold" id="certTip">—</div>
             </div>
 
             <div class="text-right text-xs text-gray-400 mt-2">ID : <span id="certId">#0000</span></div>
@@ -134,10 +143,12 @@
           <div class="stamp">VALIDÉ<br>AUTO<br>ÉCOLE</div>
         </div>
 
-        <p class="text-gray-500 text-xs mt-4 mb-2 font-bold">📸 Fais une capture d’écran et poste-la !</p>
-        <div class="flex gap-2">
-          <button class="btn-main" id="restartBtn" style="background:#27ae60;">REJOUER 🔁</button>
-          <button class="btn-main" id="backMenuBtn" style="background:#34495e;">MENU</button>
+        <p class="text-gray-500 text-xs mt-4 mb-2 font-bold">📸 Capture d’écran + publication possible</p>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-2">
+          <button class="btn-main" id="replayNowBtn" style="background:#27ae60;">REJOUER 🔁</button>
+          <button class="btn-main" id="copyBtn" style="background:#6c5ce7;">COPIER RÉSULTAT 📋</button>
+          <button class="btn-main" id="backMenuBtn" style="background:#34495e;grid-column:1 / -1;">MENU</button>
         </div>
       </div>
     </div>
