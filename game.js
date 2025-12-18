@@ -425,38 +425,97 @@
       }
     },
 
-    // 2) Slalom
+    // 2) Slalom (V3.1 : PORTES OBLIGATOIRES)
     {
       title: "2) SLALOM",
-      intro: "Traverse le slalom. Cône touché = pénalité.",
+      intro: "Passe ENTRE les cônes (portes). Si tu rates une porte = pénalité.",
       setup() {
         resetWorld();
 
-        // road bounds
-        walls.push({ x: CX(50), y: CY(18), w: CX(100), h: 16, type:"curb" });
-        walls.push({ x: CX(50), y: CY(82), w: CX(100), h: 16, type:"curb" });
+        // ✅ On resserre la zone de route pour éviter de “contourner” le slalom
+        const roadTop = CY(28);
+        const roadBot = CY(76);
 
+        walls.push({ x: CX(50), y: roadTop - 8, w: CX(100), h: 16, type:"curb" });
+        walls.push({ x: CX(50), y: roadBot + 8, w: CX(100), h: 16, type:"curb" });
+
+        // start
         CAR.x = CX(12);
-        CAR.y = CY(62);
+        CAR.y = CY(52);
         CAR.a = 0;
         CAR.v = 0;
         CAR.steer = 0;
         CAR.gear = 1;
         updateGearUI();
 
-        const baseY = CY(50);
-        const n = 9;
-        for (let i=0;i<n;i++){
-          const x = lerp(CX(22), CX(80), i/(n-1));
-          const offset = (i%2===0 ? -1 : 1) * rand(44, 78);
-          const y = baseY + offset + rand(-10, 10);
-          cones.push({ x, y, r: 14, hit: false });
+        // ✅ Slalom en "portes" : 2 cônes = une porte.
+        // Si tu vas tout droit, tu ne seras PAS dans le bon couloir -> porte ratée.
+        meta.gates = [];
+        meta.gateIndex = 0;
+
+        const centerY = CY(52);
+        const gateGap = 92;            // espace entre les 2 cônes de la porte (plus petit = plus dur)
+        const gateOffset = 54;         // décalage haut/bas alterné
+        const nGates = 8;              // nombre de portes
+        const xStart = CX(26);
+        const xEnd = CX(78);
+
+        for (let i = 0; i < nGates; i++) {
+          const t = i / (nGates - 1);
+          const x = lerp(xStart, xEnd, t);
+
+          // alternance haut/bas + un peu d’aléatoire
+          const dir = (i % 2 === 0) ? -1 : 1;
+          const jitter = rand(-10, 10);
+          const gateCenter = centerY + dir * gateOffset + jitter;
+
+          const topConeY = gateCenter - gateGap / 2;
+          const botConeY = gateCenter + gateGap / 2;
+
+          // cônes (un peu plus gros)
+          cones.push({ x, y: topConeY, r: 16, hit: false });
+          cones.push({ x, y: botConeY, r: 16, hit: false });
+
+          meta.gates.push({
+            x,
+            y: gateCenter,
+            gap: gateGap,
+            passed: false,
+          });
         }
 
-        target = { x: CX(88), y: CY(50), w: 130, h: 96, a: 0 };
-        setMsg("Regarde loin devant. Volant doux.");
+        // ✅ Zone d’arrivée (après la dernière porte)
+        target = { x: CX(88), y: CY(52), w: 140, h: 110, a: 0 };
+
+        setMsg("Enchaîne les portes. Raté = pénalité.");
+        showToast("SLALOM", "Portes obligatoires", 800);
       },
-      update(dt) {}
+      update(dt) {
+        // ✅ Validation / pénalité si une porte est ratée
+        if (!meta.gates || meta.gateIndex == null) return;
+
+        const i = meta.gateIndex;
+        if (i >= meta.gates.length) return;
+
+        const gate = meta.gates[i];
+
+        // on vérifie au moment où la voiture dépasse la porte en X
+        if (CAR.x > gate.x && !gate.passed) {
+          const inside = Math.abs(CAR.y - gate.y) <= (gate.gap / 2) - 10; // marge
+          gate.passed = true;
+
+          if (inside) {
+            sfx("ok");
+            vib(10);
+            showToast("OK", `Porte ${i + 1}/${meta.gates.length}`, 500);
+          } else {
+            addPenalty(3, `Porte ratée (${i + 1}/${meta.gates.length})`, "wall");
+            setMsg("Oups… porte ratée. Recalage et continue !");
+          }
+
+          meta.gateIndex++;
+        }
+      }
     },
 
     // 3) Créneau
@@ -743,7 +802,7 @@
     for (const c of cones) {
       if (c.hit) continue;
       for (const p of corners) {
-        if (Math.hypot(p.x - c.x, p.y - c.y) < c.r + 7) {
+        if (Math.hypot(p.x - c.x, p.y - c.y) < c.r + 8) {
           c.hit = true;
           addPenalty(2, "Cône touché", "cone");
           return;
@@ -964,7 +1023,6 @@ Run clean : ${clean}
   }
 
   function drawEnvironment(){
-    // grass top + bottom like road shoulders
     ctx.fillStyle = grassPattern || "#2f6f3a";
     ctx.fillRect(0,0,W(), H());
   }
@@ -973,18 +1031,15 @@ Run clean : ${clean}
     const roadTop = CY(22);
     const roadBot = CY(82);
 
-    // asphalt band
     ctx.fillStyle = asphaltPattern || "#3d3f44";
     ctx.fillRect(0, roadTop, W(), roadBot-roadTop);
 
-    // slight vignette
     const g = ctx.createRadialGradient(W()*0.5, H()*0.5, 100, W()*0.5, H()*0.5, Math.max(W(),H())*0.7);
     g.addColorStop(0, "rgba(255,255,255,0.03)");
     g.addColorStop(1, "rgba(0,0,0,0.45)");
     ctx.fillStyle = g;
     ctx.fillRect(0,0,W(),H());
 
-    // lane markings (center dashed)
     ctx.strokeStyle = "rgba(241,245,249,0.85)";
     ctx.lineWidth = 4;
     ctx.setLineDash([20, 18]);
@@ -994,7 +1049,6 @@ Run clean : ${clean}
     ctx.stroke();
     ctx.setLineDash([]);
 
-    // edge lines
     ctx.strokeStyle = "rgba(241,245,249,0.60)";
     ctx.lineWidth = 3;
     ctx.beginPath();
@@ -1006,7 +1060,6 @@ Run clean : ${clean}
   }
 
   function drawStopLineAndLight(){
-    // stop line
     ctx.strokeStyle = "rgba(241,245,249,0.92)";
     ctx.lineWidth = 8;
     ctx.beginPath();
@@ -1014,16 +1067,13 @@ Run clean : ${clean}
     ctx.lineTo(meta.stopLineX, CY(78));
     ctx.stroke();
 
-    // traffic light
     drawLight(meta.lightX, meta.lightY, meta.light);
   }
 
   function drawLight(x,y,state){
-    // pole
     ctx.fillStyle = "rgba(0,0,0,0.5)";
     ctx.fillRect(x-7,y,14,92);
 
-    // box
     ctx.fillStyle = "rgba(10,12,16,0.75)";
     ctx.strokeStyle = "rgba(255,255,255,0.18)";
     ctx.lineWidth = 2;
@@ -1051,7 +1101,6 @@ Run clean : ${clean}
     ctx.save();
     ctx.translate(t.x,t.y);
 
-    // green target rectangle
     ctx.strokeStyle = "rgba(59,214,107,0.95)";
     ctx.lineWidth = 4;
     ctx.setLineDash([10,10]);
@@ -1060,7 +1109,6 @@ Run clean : ${clean}
     ctx.fillStyle = "rgba(59,214,107,0.12)";
     ctx.fillRect(-t.w/2, -t.h/2, t.w, t.h);
 
-    // arrow
     ctx.fillStyle = "rgba(255,255,255,0.65)";
     ctx.beginPath();
     ctx.moveTo(0, -t.h/2 - 14);
@@ -1090,7 +1138,6 @@ Run clean : ${clean}
     ctx.fill();
     ctx.stroke();
 
-    // diagonal stripe for curb
     if (w.type === "curb") {
       ctx.strokeStyle = "rgba(255,255,255,0.25)";
       ctx.beginPath();
@@ -1105,7 +1152,6 @@ Run clean : ${clean}
     ctx.save();
     ctx.translate(p.x,p.y);
 
-    // shadow
     ctx.globalAlpha = 0.25;
     ctx.fillStyle = "black";
     ctx.beginPath();
@@ -1113,7 +1159,6 @@ Run clean : ${clean}
     ctx.fill();
     ctx.globalAlpha = 1;
 
-    // body
     ctx.fillStyle = p.color;
     ctx.strokeStyle = "rgba(0,0,0,0.25)";
     ctx.lineWidth = 2;
@@ -1122,7 +1167,6 @@ Run clean : ${clean}
     ctx.fill();
     ctx.stroke();
 
-    // windows
     ctx.fillStyle = "rgba(10,20,40,0.55)";
     ctx.beginPath();
     ctx.roundRect(-p.w*0.30, -p.h*0.25, p.w*0.60, p.h*0.28, 8);
@@ -1152,7 +1196,6 @@ Run clean : ${clean}
     ctx.translate(CAR.x, CAR.y);
     ctx.rotate(CAR.a + Math.PI/2);
 
-    // shadow
     ctx.globalAlpha = 0.28;
     ctx.fillStyle = "black";
     ctx.beginPath();
@@ -1160,7 +1203,6 @@ Run clean : ${clean}
     ctx.fill();
     ctx.globalAlpha = 1;
 
-    // body
     ctx.fillStyle = "rgba(255,255,255,0.92)";
     ctx.strokeStyle = "rgba(0,0,0,0.25)";
     ctx.lineWidth = 2;
@@ -1169,16 +1211,13 @@ Run clean : ${clean}
     ctx.fill();
     ctx.stroke();
 
-    // windows
     ctx.fillStyle = "rgba(10,20,40,0.70)";
     ctx.beginPath(); ctx.roundRect(-13, -22, 26, 14, 7); ctx.fill();
     ctx.beginPath(); ctx.roundRect(-13, 8, 26, 14, 7); ctx.fill();
 
-    // small "AUTO-ÉCOLE" stripe
     ctx.fillStyle = "rgba(246,195,67,0.9)";
     ctx.fillRect(-12, -2, 24, 4);
 
-    // brake/reverse
     const braking = (CAR.inputs.brake || keys.down) && Math.abs(CAR.v) > 5;
     if (braking) {
       ctx.shadowColor = "rgba(255,80,80,0.8)";
@@ -1224,7 +1263,6 @@ Run clean : ${clean}
   screenEnd.classList.add("hidden");
   screenStart.classList.remove("hidden");
 
-  // menu click sfx
   btnModeContest.addEventListener("click", ()=> sfx("click"));
   btnModePractice.addEventListener("click", ()=> sfx("click"));
   btnStart.addEventListener("click", ()=> sfx("click"));
@@ -1232,7 +1270,6 @@ Run clean : ${clean}
   btnReplay.addEventListener("click", ()=> sfx("click"));
   btnMenu.addEventListener("click", ()=> sfx("click"));
 
-  // Kickoff
   resize();
   requestAnimationFrame(frame);
 })();
