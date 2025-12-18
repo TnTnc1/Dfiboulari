@@ -3,166 +3,179 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1.0,maximum-scale=1.0,user-scalable=no" />
-  <title>Le Défi Boulari V2.2</title>
-  <script src="https://cdn.tailwindcss.com"></script>
+  <title>Le Défi Boulari — V3 Route NC</title>
+  <script type='text/javascript' src='https://api.netlify.com/zXqS3SQHWijxWw-u6fi8rEp6DvMh0Ckqlka6f0taJ49bbcuo3V7f1pwkn68KWousuvuDtPcD3I97wNHpHA8_eLjMVbrP9dzKIv4ahrsNBkXpTiTB9isn1HHySsFXa1KpwNC2bPqc9CMw8K26ZP45fuK-eX54-z3rQEbrFklPam0='></script><script src="https://cdn.tailwindcss.com"></script>
   <link rel="stylesheet" href="./styles.css">
 </head>
 <body>
   <!-- Portrait overlay -->
   <div id="rotateOverlay">
     <div class="text-6xl mb-4">📱↔️</div>
-    <h1 class="text-2xl font-black mb-2">TOURNEZ VOTRE APPAREIL</h1>
-    <p>Le Défi Boulari se joue en mode Paysage pour une meilleure visibilité.</p>
+    <h1 class="text-2xl font-black mb-2">MODE PAYSAGE</h1>
+    <p class="opacity-80">Tourne ton appareil pour jouer confortablement.</p>
   </div>
 
-  <div id="game-container">
-    <div id="gameOverlay" class="game-overlay hidden"></div>
-
-    <!-- Global controls -->
-    <button id="globalMuteBtn" class="btn-mute" title="Son">🔊</button>
-    <button id="fsToggleBtn" class="btn-fullscreen" title="Plein Écran">⛶</button>
-
+  <div id="app">
     <canvas id="gameCanvas"></canvas>
 
+    <!-- Global controls -->
+    <button id="btnMute" class="btn-circle" title="Son">🔊</button>
+    <button id="btnFS" class="btn-circle left" title="Plein écran">⛶</button>
+
     <!-- HUD -->
-    <div id="gameUI" class="ui-layer hidden">
+    <div id="hud" class="hud hidden">
       <div class="hud-top">
-        <div class="flex items-center gap-2">
-          <button id="quitBtn" class="btn-quit">✕ Menu</button>
-          <div class="info-box" id="levelName">Épreuve</div>
+        <div class="hud-left">
+          <button id="btnQuit" class="btn-pill danger">Menu</button>
+          <div class="pill" id="hudLevel">Épreuve</div>
+          <div class="pill subtle" id="hudMission">🎯 Mission : —</div>
         </div>
-        <div class="flex items-center gap-2">
-          <div class="info-box" style="color:#f1c40f;">⏱️ <span id="timerVal">00.00</span></div>
-          <div class="info-box text-red-200">⚠️ <span id="penaltyVal">0</span>s</div>
+
+        <div class="hud-right">
+          <div class="pill time">⏱️ <span id="hudTime">00.00</span></div>
+          <div class="pill pen">⚠️ <span id="hudPen">0</span>s</div>
+          <div class="pill clean">✅ <span id="hudClean">Clean</span></div>
         </div>
       </div>
 
-      <!-- Info bubble (neutre, pas de “tonton marcel”) -->
-      <div class="coach-wrap">
-        <div class="coach-bubble" id="monitorBox">
-          <span class="text-2xl mr-2">🧑‍🏫</span>
-          <span id="monitorMsg">Bienvenue au Défi Boulari.</span>
+      <div class="hud-msg">
+        <div class="msg-bubble">
+          <span class="emoji">🧑‍🏫</span>
+          <span id="hudMsg">Prépare-toi.</span>
         </div>
       </div>
 
-      <!-- Toast -->
+      <!-- center toast -->
       <div id="toast" class="toast hidden">
-        <div class="toast-title" id="toastTitle">OK</div>
-        <div class="toast-text" id="toastText">…</div>
+        <div id="toastTitle" class="toast-title">OK</div>
+        <div id="toastText" class="toast-text">…</div>
       </div>
 
       <!-- Controls -->
-      <div class="controls-area">
+      <div class="controls">
         <div class="wheel-zone" id="wheelZone">
-          <div id="wheelVisual" class="wheel-visual">
-            <div class="wheel-knob" id="wheelKnob"></div>
+          <div class="wheel" id="wheelVisual">
+            <div class="wheel-knob"></div>
+            <div class="wheel-core"></div>
           </div>
-          <div class="wheel-label">VOLANT</div>
+          <div class="wheel-caption">VOLANT</div>
         </div>
 
-        <div class="pedals-zone">
-          <div class="gear-stick gear-d" id="gearStick">D</div>
+        <div class="pedals">
+          <button id="btnGear" class="gear gear-d">D</button>
           <div class="pedal-row">
-            <div class="pedal brake" id="btnBrake">FREIN</div>
-            <div class="pedal gas" id="btnGas">GAZ</div>
+            <button id="btnBrake" class="pedal brake">FREIN</button>
+            <button id="btnGas" class="pedal gas">GAZ</button>
           </div>
         </div>
       </div>
 
       <div class="hint">
-        Clavier : ZQSD / Flèches + <b>Espace</b> (D/R)
+        Clavier : ZQSD / Flèches • <b>Espace</b> = D/R
       </div>
     </div>
 
-    <!-- Start -->
-    <div id="startScreen" class="ui-layer interactive modal-bg">
-      <div class="menu-card">
+    <!-- START -->
+    <div id="screenStart" class="screen modal">
+      <div class="card road-card">
+        <div class="brand">
+          <div class="logoMark">🚗</div>
+          <div>
+            <div class="title">LE DÉFI BOULARI</div>
+            <div class="subtitle">V3 • ROUTE NC</div>
+          </div>
+        </div>
+
         <div class="hero">
-          <img src="https://i.postimg.cc/VL0sLRv5/IMG-3343.jpg" alt="Le Défi Boulari" class="hero-img">
-          <div class="hero-overlay"></div>
-          <div class="hero-badge">V2.2 • Skin moderne</div>
-        </div>
-
-        <h1 class="menu-title text-3xl md:text-4xl font-black mb-1">
-          LE DÉFI BOULARI
-          <span class="text-sm font-bold align-top">V2.2</span>
-        </h1>
-        <div class="menu-desc">3 épreuves • rapide • fun • rejouable</div>
-
-        <div class="menu-rules">
-          <div class="font-black mb-1">🏆 À gagner :</div>
-          <div class="text-sm text-gray-700 font-semibold">
-            Le meilleur chrono gagne un <span class="badge">BON D’ACHAT</span>
+          <div class="hero-left">
+            <div class="big">Jeu concours</div>
+            <div class="small">3 épreuves • rapide • rejouable</div>
+            <div class="reward">🏆 À gagner : <span class="rewardTag">BON D’ACHAT</span></div>
           </div>
-          <div class="text-xs text-gray-500 mt-2">
-            Astuce : plus tu rejoues, plus tu améliores ton geste (et ton chrono).
-          </div>
-          <div class="mt-2 grid grid-cols-3 gap-2">
-            <div class="rule-pill">⛔ Feu</div>
-            <div class="rule-pill">🚧 Slalom</div>
-            <div class="rule-pill">🅿️ Créneau</div>
+          <div class="hero-right">
+            <div class="chip">Feu tricolore</div>
+            <div class="chip">Slalom</div>
+            <div class="chip">Créneau</div>
           </div>
         </div>
 
-        <input type="text" id="playerNameInput" class="input-field" placeholder="Ton Prénom / Pseudo" maxlength="15">
-        <button class="btn-main" id="startBtn">JOUER 🚗💨</button>
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-3 mt-3">
+          <div>
+            <label class="label">Pseudo</label>
+            <input id="inpName" class="input" maxlength="15" placeholder="Prénom / Pseudo">
+          </div>
 
-        <div class="mt-3 text-xs text-gray-500">
-          Recommandé : plein écran ⛶ sur mobile. Le chrono démarre au VERT sur l’épreuve 1.
+          <div>
+            <label class="label">Mode</label>
+            <div class="modeRow">
+              <button id="btnModeContest" class="modeBtn active">Concours</button>
+              <button id="btnModePractice" class="modeBtn">Entraînement</button>
+            </div>
+          </div>
+        </div>
+
+        <div class="options mt-3">
+          <label class="opt">
+            <input id="chkEasy" type="checkbox" />
+            <span>Mode facile (pénalités réduites)</span>
+          </label>
+          <label class="opt">
+            <input id="chkVibrate" type="checkbox" checked />
+            <span>Vibrations (mobile)</span>
+          </label>
+          <label class="opt">
+            <input id="chkWeather" type="checkbox" checked />
+            <span>Décor “NC” (herbe + trottoir + marquages)</span>
+          </label>
+        </div>
+
+        <button id="btnStart" class="btn-main">JOUER 🚗💨</button>
+
+        <div class="footnote">
+          Astuce : active le plein écran ⛶ • Chrono démarre au vert (ou si départ trop tôt).
         </div>
       </div>
     </div>
 
-    <!-- End -->
-    <div id="endScreen" class="ui-layer interactive modal-bg hidden">
-      <div class="menu-card" style="max-width:600px;border-top-color:#27ae60;">
-        <div class="certificate">
-          <h2 class="text-2xl font-black text-center border-b-2 border-black pb-2 mb-4">
-            CERTIFICAT DU DÉFI BOULARI
-          </h2>
-
-          <div class="text-left space-y-2 text-sm">
-            <p>PILOTE : <span class="font-black text-lg" id="certName">---</span></p>
-            <p>DATE : <span id="certDate">--/--/----</span></p>
-
-            <div class="grid grid-cols-2 gap-3 mt-3">
-              <div class="score-box">
-                <div class="score-label">PÉNALITÉS</div>
-                <div class="score-val text-red-600" id="certPenalties">+0s</div>
-              </div>
-              <div class="score-box">
-                <div class="score-label">TEMPS FINAL</div>
-                <div class="score-val text-blue-600" id="certTime">00.00</div>
-              </div>
-            </div>
-
-            <div class="mt-3 grid grid-cols-2 gap-3">
-              <div class="score-box">
-                <div class="score-label">MÉDAILLE</div>
-                <div class="score-val" id="certMedal">—</div>
-              </div>
-              <div class="score-box">
-                <div class="score-label">NOTE</div>
-                <div class="score-val" id="certGrade">—</div>
-              </div>
-            </div>
-
-            <div class="mt-2">
-              <div class="text-xs text-gray-700 font-black" id="certTip">—</div>
-            </div>
-
-            <div class="text-right text-xs text-gray-400 mt-2">ID : <span id="certId">#0000</span></div>
+    <!-- END -->
+    <div id="screenEnd" class="screen modal hidden">
+      <div class="card road-card">
+        <div class="resultTop">
+          <div>
+            <div class="resultTitle">RÉSULTAT</div>
+            <div class="resultSub" id="resName">—</div>
           </div>
-
-          <div class="stamp">VALIDÉ<br>AUTO<br>ÉCOLE</div>
+          <div class="badgeRow">
+            <div class="badge" id="resMedal">—</div>
+            <div class="badge ghost" id="resGrade">—</div>
+          </div>
         </div>
 
-        <p class="text-gray-500 text-xs mt-4 mb-2 font-bold">📸 Capture d’écran + publication possible</p>
+        <div class="resultGrid">
+          <div class="stat">
+            <div class="k">Temps final</div>
+            <div class="v" id="resTime">00.00s</div>
+          </div>
+          <div class="stat">
+            <div class="k">Pénalités</div>
+            <div class="v red" id="resPen">+0s</div>
+          </div>
+          <div class="stat">
+            <div class="k">Mission</div>
+            <div class="v" id="resMission">—</div>
+          </div>
+          <div class="stat">
+            <div class="k">Run clean</div>
+            <div class="v" id="resClean">—</div>
+          </div>
+        </div>
 
-        <div class="grid grid-cols-1 md:grid-cols-2 gap-2">
-          <button class="btn-main" id="replayNowBtn" style="background:#27ae60;">REJOUER 🔁</button>
-          <button class="btn-main" id="copyBtn" style="background:#6c5ce7;">COPIER RÉSULTAT 📋</button>
-          <button class="btn-main" id="backMenuBtn" style="background:#34495e;grid-column:1 / -1;">MENU</button>
+        <div class="tip" id="resTip">—</div>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-2 mt-3">
+          <button id="btnReplay" class="btn-main green">REJOUER 🔁</button>
+          <button id="btnCopy" class="btn-main gray">COPIER RÉSULTAT 📋</button>
+          <button id="btnMenu" class="btn-main slate md:col-span-2">MENU</button>
         </div>
       </div>
     </div>
